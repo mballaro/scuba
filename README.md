@@ -1,5 +1,5 @@
 
-![SCUBA Logo](https://mballaro.github.io/scuba/share/scuba_files/logo.png)
+![SCUBA Logo](https://github.com/mballaro/scuba/blob/master/share/scuba_files/logo.png)
 
 # Structure of SCUBA (SpeCtral Utility Belt for Altimetry application)
 ```
@@ -70,12 +70,12 @@ lon:output grid lon 1D
      >> cd tools/
      >>	python display_resolution.py ../test_case/test_case.nc
 
-![RESOLUTION](https://mballaro.github.io/scuba/share/scuba_files/resolution.png)
+![RESOLUTION](https://github.com/mballaro/scuba/blob/master/share/scuba_files/resolution.png)
 
      >> python display_spectrum_coherence.py ../test_case/test_case.nc
      
-![SPECTRAL](https://mballaro.github.io/scuba/share/scuba_files/spectrum.png)
+![SPECTRAL](https://github.com/mballaro/scuba/blob/master/share/scuba_files/spectrum.png)
 
      >> python display_spectral_taylor_diagram.py ../test_case/test_case.nc
 
-![TD](https://mballaro.github.io/scuba/share/scuba_files/spectral_taylor_diagram.png)
+![TD](https://github.com/mballaro/scuba/blob/master/share/scuba_files/spectral_taylor_diagram.png)

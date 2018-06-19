@@ -1,0 +1,130 @@
+
+# Topex
+T1:
+   DELTA_T: 1.07858
+   VELOCITY: 7.0
+
+# ERS1
+E1:
+   DELTA_T: 0.98
+   VELOCITY: 6.74
+
+# ERS2
+E2:
+   DELTA_T: 0.98
+   VELOCITY: 6.73
+
+# Geosat
+G1:
+   # delta T computed from GDR (cycle 36 to 98)
+   DELTA_T: 0.979922      
+   VELOCITY: 7.0
+
+# Poseidon
+P1:
+   DELTA_T: 1.0010400
+   VELOCITY: 7.0
+
+# Topex/Poseidon
+TP:
+   DELTA_T: 1.07858
+   VELOCITY: 5.77
+
+# Jason-1
+J1:
+   DELTA_T: 1.02
+   VELOCITY: 5.77
+
+# Envisat
+EN:
+   DELTA_T: 1.114
+   VELOCITY: 6.73
+
+# GFO
+G2:
+   # delta T computed from GDR (cycle 37 to  92)
+   DELTA_T: 0.979921
+   VELOCITY: 7.0
+
+# Cryosat1
+C1:
+   DELTA_T: 1.07
+   VELOCITY: 7.0
+
+# Sentinel-3
+S3A:
+   DELTA_T: 1.0
+   VELOCITY: 6.70
+
+# Topex/Poseidon new orbit
+TPN:
+   DELTA_T: 1.07858
+   VELOCITY: 5.77
+
+# Jason2
+J2:
+   DELTA_T: 1.019417476
+   VELOCITY: 5.77
+
+# Jason1 tandem
+J1N:
+   DELTA_T: 1.02
+   VELOCITY: 5.77
+
+# Icesat1
+I1:
+   DELTA_T: 1.0
+   VELOCITY: 7.2
+
+# SARAL/AltiKa
+AL:
+   # delta T in fact non-constant (intervalle [1.056,1.128] s)
+   DELTA_T: 1.056
+   VELOCITY: 6.73
+
+# Envisat drift
+ENN:
+   DELTA_T: 1.114
+   VELOCITY: 6.73
+
+# Cryosat-2
+C2:
+   DELTA_T: 0.9434
+   VELOCITY: 6.77
+
+# HY-2A
+H2:
+   DELTA_T: 1.024
+   VELOCITY: 6.337
+
+# Jason1 Geodetic
+J1G:
+   DELTA_T: 1.01
+   VELOCITY: 5.78
+
+# Jason3
+J3:
+   DELTA_T: 1.019417476
+   VELOCITY: 5.77
+
+# OSTM/Jason2 interleaved
+J2N:
+   DELTA_T: 1.019417476
+   VELOCITY: 5.77
+
+#H2 Geodetic
+H2G:
+   DELTA_T: 1.024
+   VELOCITY: 6.70
+
+# SARAL/AltiKa
+ALG:
+   # delta T in fact non-constant (intervalle [1.056,1.128] s)
+   DELTA_T: 1.056
+   VELOCITY: 6.73
+
+# Jason2 Long Repeat Orbit phase
+J2G:
+   DELTA_T: 0.99787
+   VELOCITY: 5.7995
+

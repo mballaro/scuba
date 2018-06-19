@@ -67,8 +67,8 @@ lon:output grid lon 1D
 
 
 # Visualisation of the results
-     >> cd tools/
-     >>	python display_resolution.py ../test_case/test_case.nc
+     >> cd tools
+     >> python display_resolution.py ../test_case/test_case.nc
 
 ![RESOLUTION](https://github.com/mballaro/scuba/blob/master/share/scuba_files/resolution.png)
 

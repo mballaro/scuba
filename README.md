@@ -8,7 +8,7 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
                                         SCUBA
                                           |
             +--------------------+----------------+---------------------+
-	      share		            src	          test_case	               tools
+          share                 src           test_case                tools
 ```
 * `share` contains information or files for running the program, e.g. the distance from closest land point (needed for coastal editing) or altimeter mission information
 * `src` contains the python scripts to perform the analysis

@@ -15,6 +15,7 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
    * [Authors & Contributors](#authors-contributors)
 <!--te-->
 
+
 # Structure of SCUBA
 ====================
 ```
@@ -27,6 +28,7 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
 * `src` contains the python scripts to perform the analysis
 * `test_case` provides test cases to test the program
 * `tools` includes scripts to display spectrum, resolution and spectral Taylor Diagram 
+
 
 # Usage & Background
 ====================
@@ -65,6 +67,7 @@ The program is structured as follow:
 
 * 5- writing netCDF output
 
+
 # First step with SCUBA
 =======================
 ## Running test cases
@@ -89,6 +92,7 @@ This test cases performs spectral analysis on altimeter maps and along-track dat
      >> python display_spectral_taylor_diagram.py ../test_case/psd_alongtrack_direction.nc
 
 ![TD](https://github.com/mballaro/scuba/blob/master/share/scuba_files/spectral_taylor_diagram.png)
+
 
 # Authors & Contributors
 ========================

@@ -27,19 +27,18 @@ The program is structured as follow:
 
 <p align="center">
 <b>Example alongtrack direction</b>
-</p>
 ![segment along track](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_alongtrack_direction.gif)
+</p>
 
 <p align="center">
 <b>Example zonal direction</b>
-</p>
 ![segment zonal](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_x_direction.gif)
+</p>
 
 <p align="center">
 <b>Example meridional direction</b>
-</p>
 ![segment meridional](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_y_direction.gif)
-
+</p>
 
 * 3- performing spectral analysis in boxes by selecting all the segments of the database found within the box
 ![segment selection](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_selection.gif)

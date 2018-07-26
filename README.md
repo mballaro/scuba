@@ -28,7 +28,7 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
 * `tools` includes scripts to display spectrum, resolution and spectral Taylor Diagram 
 
 
-# Usage & Background
+# Usage and Background
 * `scuba_alongtrack.py` performs spectral analysis on along-track data or between along-track and gridded data
 * `scuba_grid.py` performs spectral analysis on gridded data or between two gridded data
 
@@ -89,7 +89,7 @@ This test cases performs spectral analysis on altimeter maps and along-track dat
 ![TD](https://github.com/mballaro/scuba/blob/master/share/scuba_files/spectral_taylor_diagram.png)
 
 
-# Authors & Contributors
+# Authors and Contributors
 * Maxime Ballarotta, Clément Ubelmann
 * _Feel free to dive in ..._
 

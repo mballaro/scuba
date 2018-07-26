@@ -7,9 +7,9 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
 
 <!--ts-->
    * [Table of contents](#table-of-contents)
-   * [Structure of SCUBA](#Structure-of-SCUBA)
+   * [Structure of SCUBA](#structure-of-scuba)
    * [Usage & Background ](#usage)
-   * [First step with SCUBA](#first-step-with-SCUBA)
+   * [First step with SCUBA](#first-step-with-scuba)
       * [Running test cases](#running-test-cases)
       * [Visualisation of the results](#visualisation-of-the-results)
    * [Authors & Contributors](#authors-contributors)

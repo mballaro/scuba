@@ -24,10 +24,13 @@ The program is structured as follow:
 * 1) reading the dataset
 
 * 2) computing segment (along-track, or zonal or meridional) database
+Example alongtrack direction
 ![segment along track](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_alongtrack_direction.gif)
 
+Example zonal direction
 ![segment zonal](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_x_direction.gif)
 
+Example meridional direction
 ![segment meridional](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_y_direction.gif)
 
 * 3) performing spectral analysis in boxes by selecting all the segments of the database found within the box

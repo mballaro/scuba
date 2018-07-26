@@ -21,31 +21,33 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
 * `scuba_grid.py` performs spectral analysis on gridded data or between two gridded data
 
 The program is structured as follow:
-* 1) reading the dataset
+* 1- reading the dataset
 
-* 2) computing segment (along-track, or zonal or meridional) database
+* 2- computing segment (along-track, or zonal or meridional) database
 
 <p align="center">
 <b>Example alongtrack direction</b>
-
+</p>
 ![segment along track](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_alongtrack_direction.gif)
 
+<p align="center">
 <b>Example zonal direction</b>
-
+</p>
 ![segment zonal](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_x_direction.gif)
 
- <b>Example meridional direction</b>
-
-![segment meridional](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_y_direction.gif)
+<p align="center">
+<b>Example meridional direction</b>
 </p>
+![segment meridional](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_y_direction.gif)
 
-* 3) performing spectral analysis in boxes by selecting all the segments of the database found within the box
+
+* 3- performing spectral analysis in boxes by selecting all the segments of the database found within the box
 ![segment selection](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_selection.gif)
 
 
-* 4) gridding the results
+* 4- gridding the results
 
-* 5) writing netCDF output
+* 5- writing netCDF output
 
 # First step with SCUBA
 ## Running test cases

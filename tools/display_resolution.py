@@ -1,4 +1,6 @@
-#!/usr/bin/python
+"""
+Display SCUBA analysis for spectral lovers...
+"""
 import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.basemap import Basemap, addcyclic
@@ -7,8 +9,6 @@ from netCDF4 import Dataset
 from sys import argv, exit
 from numpy import arange, zeros, meshgrid, ma
 from matplotlib import rc, colors
-#rc('text', usetex=True)
-
 
 input_file = argv[1]
 
@@ -19,8 +19,8 @@ lat = nc.variables['lat2D'][:, :]
 lon = nc.variables['lon2D'][:, :]
 nc.close()
 
-effective_resolution = np.ma.masked_where(effective_resolution==0., effective_resolution)
-useful_resolution = np.ma.masked_where(useful_resolution==0., useful_resolution)
+effective_resolution = np.ma.masked_where(effective_resolution == 0., effective_resolution)
+useful_resolution = np.ma.masked_where(useful_resolution == 0., useful_resolution)
 
 fig = plt.figure()
 bmap = Basemap(projection='cyl',
@@ -30,23 +30,25 @@ bmap = Basemap(projection='cyl',
                urcrnrlon=np.max(lon),
                resolution='i')
 
-ax = fig.add_subplot(211)
-bmap.drawcoastlines(zorder=5, linewidth=0.25)
-bmap.fillcontinents(color='grey', lake_color='white')
-bmap.drawparallels(arange(-90, 90, 30), labels=[1, 0, 0, 0], fontsize=20, dashes=[4, 4], linewidth=0.25)
-bmap.drawmeridians(arange(-180, 360, 45), labels=[0, 0, 0, 1], fontsize=20, dashes=[4, 4], linewidth=0.25)
-C1 = bmap.contourf(lon, lat, effective_resolution, np.arange(100,800,50), extend='both', cmap='Spectral_r')
-C2 = bmap.contour(lon, lat, effective_resolution, np.arange(100,800,50), colors='grey', alpha=0.5)
+
+def bmap_option():
+    bmap.drawcoastlines(zorder=5, linewidth=0.25)
+    bmap.fillcontinents(color='grey', lake_color='white')
+    bmap.drawparallels(arange(-90, 90, 30), labels=[1, 0, 0, 0], fontsize=20, dashes=[4, 4], linewidth=0.25)
+    bmap.drawmeridians(arange(-180, 360, 45), labels=[0, 0, 0, 1], fontsize=20, dashes=[4, 4], linewidth=0.25)
+
+
+fig.add_subplot(121)
+bmap_option()
+C1 = bmap.contourf(lon, lat, effective_resolution, np.arange(100, 800, 50), extend='both', cmap='Spectral_r')
+C2 = bmap.contour(lon, lat, effective_resolution, np.arange(100, 800, 50), colors='grey', alpha=0.5)
 cbar = bmap.colorbar(C1, location='bottom', pad='15%')
 cbar.set_label('Effective Resolution (km)', fontweight='bold')
 
-ax = fig.add_subplot(212)
-bmap.drawcoastlines(zorder=5, linewidth=0.25)
-bmap.fillcontinents(color='grey', lake_color='white')
-bmap.drawparallels(arange(-90, 90, 30), labels=[1, 0, 0, 0], fontsize=20, dashes=[4, 4], linewidth=0.25)
-bmap.drawmeridians(arange(-180, 360, 45), labels=[0, 0, 0, 1], fontsize=20, dashes=[4, 4], linewidth=0.25)
-C3 = bmap.contourf(lon, lat, useful_resolution, np.arange(100,800,50), extend='both', cmap='Spectral_r')
-C4 = bmap.contour(lon, lat, useful_resolution, np.arange(100,800,50), colors='grey', alpha=0.5)
+fig.add_subplot(122)
+bmap_option()
+C3 = bmap.contourf(lon, lat, useful_resolution, np.arange(100, 800, 50), extend='both', cmap='Spectral_r')
+C4 = bmap.contour(lon, lat, useful_resolution, np.arange(100, 800, 50), colors='grey', alpha=0.5)
 cbar = bmap.colorbar(C3, location='bottom', pad='15%')
 cbar.set_label('Useful Resolution (km)', fontweight='bold')
 

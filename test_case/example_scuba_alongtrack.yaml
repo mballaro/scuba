@@ -1,0 +1,67 @@
+
+inputs:
+   # input_file_reference: netCDF file
+   # input_map_directory: directory with netcDF file maps of SLA
+   # map_file_pattern: file pattern for file selection: 
+   # mission: mission acronym (ex: AL, H2, J2, C2 ....)
+   input_file_reference: ./inputs/alongtrack/sla_al_20140101-20140131.nc
+   input_map_directory: ./inputs/maps
+   map_file_pattern: dt_global_allsat_phy_l4_
+   mission: AL
+   
+properties:
+    study_area:
+        # llcrnrlon: study area minimum longitude
+        # urcrnrlon: study area maximum longitude
+        # llcrnrlat: study area minimum latitude
+        # urcrnrlat: study area maximum latitude
+        # flag_roll: flag for shifting longitude array from [0:360] to [-180:180]. Useful for Med Sea products 
+        # flag_ewp: flag east/west periodicity (True == activated)
+        # flag_greenwich_start: True if longitude start at 0 
+        llcrnrlon: 0
+        urcrnrlon: 360
+        llcrnrlat: -90
+        urcrnrlat: 90
+        flag_roll: False
+        flag_ewp: False
+        flag_greenwich_start: True
+        
+    time_window:
+        # YYYYMMDD_min: lower bound temporal window (ex: 20150101)
+        # YYYYMMDD_max: upper bound temporal window (ex: 20151231)
+        YYYYMMDD_min: 20140101
+        YYYYMMDD_max: 20140131
+        
+    # mission_management: altimeter mission global information
+    mission_management: ../share/MissionManagement.yaml
+    
+    # flag_edit_coastal: Activate / Deactivate coastal distance editing (ex: True/False)
+    # file_coastal_distance: netCDF file including coastal distance in km (ex: DistanceTerre_1_8_patched.nc)
+    # coastal_criteria: band lenght in km for coastal editing (ex: 100.)
+    flag_edit_coastal: True
+    file_coastal_distance: ../share/land_distance_R0125_patched_island.nc
+    coastal_criteria: 100.
+    
+    # flag_edit_spatiotemporal_incoherence: edit point where spatiotemporal incoherence is found (True/False). Test is based on altimeter velocity checking
+    flag_edit_spatiotemporal_incoherence: False 
+
+    spectral_parameters:
+        # flag_alongtrack_only: True -> compute alongtrack spectrum only; False -> compute maps and alongtrack spectrum + spectral coherence
+        # lenght_scale: segment lenght in km to consider in the spectral subsampling (ex: 1500) 
+        # delta_lat: lenght in degree lat for spectral averaging (ex: 10 := 10°)
+        # delta_lon: lenght in degree lon for spectral averaging (ex: 10 := 10°)
+        # equal_area: flag for setting equal_area global averaging (True/False). If true averaging based on lenght_scale
+        flag_reference_only: False
+        lenght_scale: 800.
+        delta_lat: 10.
+        delta_lon: 10.
+        equal_area: False
+        
+outputs:
+    # output_lon_resolution: longitude resolution output grid
+    # output_lat_resolution: latitude resolution output grid
+    # output_filename: output filename spectral computation
+    output_lon_resolution: 1.
+    output_lat_resolution: 1.
+    output_filename: psd_alongtrack_direction.nc
+

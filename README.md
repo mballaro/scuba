@@ -3,7 +3,7 @@
 
 SCUBA performs spectral analysis of along-track and gridded dataset, as well as spectral statistical comparison between two fields (e.g., along-track vs grid, grid vs grid).
 
-# Structure of SCUBA (SpeCtral Utility Belt for Altimetry application)
+# Structure of SCUBA
 ```
                                         SCUBA
                                           |
@@ -24,12 +24,14 @@ The program is structured as follow:
 * 1) reading the dataset
 
 * 2) computing segment (along-track, or zonal or meridional) database
-![segment along track](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_alongtrack_direction.mp4)
-![segment zonal](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_x_direction.mp4)
-![segment meridional](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_y_direction.mp4)
+![segment along track](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_alongtrack_direction.gif)
+
+![segment zonal](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_x_direction.gif)
+
+![segment meridional](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_y_direction.gif)
 
 * 3) performing spectral analysis in boxes by selecting all the segments of the database found within the box
-![segment selection](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_selection.mp4)
+![segment selection](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_selection.gif)
 
 * 4) gridding the results
 

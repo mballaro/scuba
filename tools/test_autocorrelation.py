@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pylab as plt
+import scipy
+from scipy import fftpack
 
 dx = 1.0
 lx_max = 2000.0
@@ -38,6 +40,7 @@ def compute_autocorrelation(psd_x, wavenumber_x, x_zero_crossing, display=True):
 
     :param psd_x:
     :param wavenumber_x:
+    :param x_zero_crossing:
     :param display:
     :return:
     """
@@ -50,7 +53,6 @@ def compute_autocorrelation(psd_x, wavenumber_x, x_zero_crossing, display=True):
     corr_model = (1 + factor_a * x / x_zero_crossing + one_six * (factor_a * x / x_zero_crossing) ** 2 -
                   one_six * (factor_a * x / x_zero_crossing) ** 3) * \
                  np.exp(-np.abs(factor_a * x / x_zero_crossing))
-
 
     if display:
         plt.plot(distance, autocorrelation[:int(autocorrelation.size/2)], lw=2, color='b', label='autocorrelation')
@@ -74,8 +76,16 @@ def power_spectrum(correlation_model, display=True):
     :return:
     """
 
-    psx = np.fft.fft(correlation_model)
-    ffx = np.arange(0, 1./dx, 1./lx_max)
+    corr = np.concatenate((correlation_model, correlation_model[1:][::-1]))
+    dist_x = np.concatenate((x, x[-1]+x[1:]))
+
+    delta_x = dist_x[1]-dist_x[0]
+
+    df = 1./dist_x[-1]
+
+    ffx = np.arange(0, 1./(2*delta_x), df)
+    psx = delta_x*2*np.real(np.fft.fft(corr))[:len(ffx)]
+    psx[0] = delta_x*np.real(np.fft.fft(corr))[0]
 
     if display:
         plt.plot(ffx, psx, lw=2, color='r')

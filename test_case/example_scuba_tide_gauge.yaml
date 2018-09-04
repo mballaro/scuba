@@ -1,26 +1,19 @@
 
 inputs:
-   # input_file_reference: netCDF file
-   # input_map_directory: directory with netcDF file maps of SLA
-   # map_file_pattern: file pattern for file selection: 
-   # mission: mission acronym (ex: AL, H2, J2, C2 ....)
-   input_file_directory: /data/MSA_ETU/mballarotta/ETUDE_EFFECTIVE_RESOLUTION/ETUDE_TEMPORAL_EFFECTIVE_RESOLUTION/INPUTS/DT2018/ETU/SLA/
+   # input_file_directory: folder containing SLA from tide gauge and CMEMS maps (one file per TG)
+   input_file_directory: ./inputs/tide_gauges/
    
 properties:
+    # corr_coef: minimum correlation criterion threshold between SLA map and SLA TG to perform analysis
     corr_coef: 0.8
 
     spectral_parameters:
-        # flag_alongtrack_only: True -> compute alongtrack spectrum only; False -> compute maps and alongtrack spectrum + spectral coherence
-        # lenght_scale: segment lenght in km to consider in the spectral subsampling (ex: 1500) 
-        # delta_lat: lenght in degree lat for spectral averaging (ex: 10 := 10°)
-        # delta_lon: lenght in degree lon for spectral averaging (ex: 10 := 10°)
-        # equal_area: flag for setting equal_area global averaging (True/False). If true averaging based on lenght_scale
+        # lenght_scale: segment lenght in days to consider in the spectral subsampling (ex: 100) 
+        # delta_t: temporal sampling input
         lenght_scale: 100.
         delta_t: 1.
         
 outputs:
-    # output_lon_resolution: longitude resolution output grid
-    # output_lat_resolution: latitude resolution output grid
     # output_filename: output filename spectral computation
     output_filename: psd_tide_gauge.nc
 

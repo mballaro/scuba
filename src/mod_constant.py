@@ -7,3 +7,4 @@ radians_to_degrees = 180.0/pi
 buffer_zone = 5
 nb_min_segment = 10
 segment_overlapping = 1./4.
+segment_overlapping_tg = 1./4.

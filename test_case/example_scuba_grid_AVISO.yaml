@@ -4,15 +4,16 @@ inputs:
    # input_map_directory: directory with netcDF file maps of SLA
    # map_file_pattern: file pattern for file selection: 
    # mission: mission acronym (ex: AL, H2, J2, C2 ....)
-   input_file_reference: ./inputs/natl60/NATL60-CJM165_y2012m06.1d.SSH_reg.nc
-   ref_lon_name: lon
-   ref_lat_name: lat
-   ref_field_name: sossheig
-   input_file_study: ./inputs/natl60/NATL60-CJM165_y2012m06.1d.SSH_reg.nc
-   study_lon_name: lon
-   study_lat_name: lat
-   study_field_name: sossheig
-
+   input_file_reference: /home/mballarotta/data/dt_global_allsat_phy_l4_20150101-20151231.nc
+   ref_lon_name: longitude
+   ref_lat_name: latitude
+   ref_field_name: sla
+   input_file_study: ./inputs/maps
+   study_lon_name: 
+   study_lat_name: 
+   study_field_name: 
+   
+   
 properties:
     study_area:
         # llcrnrlon: study area minimum longitude
@@ -22,12 +23,12 @@ properties:
         # flag_roll: flag for shifting longitude array from [0:360] to [-180:180]. Useful for Med Sea products 
         # flag_ewp: flag east/west periodicity (True == activated)
         # flag_greenwich_start: True if longitude start at 0 
-        llcrnrlon: -50
-        urcrnrlon: 0
-        llcrnrlat: 20
-        urcrnrlat: 45
+        llcrnrlon: -180
+        urcrnrlon: 180
+        llcrnrlat: -90
+        urcrnrlat: 90
         flag_roll: False
-        flag_ewp: False
+        flag_ewp: True
         flag_greenwich_start: False
         
     time_window:
@@ -52,7 +53,7 @@ properties:
         # delta_lat: lenght in degree lat for spectral averaging (ex: 10 := 10°)
         # delta_lon: lenght in degree lon for spectral averaging (ex: 10 := 10°)
         # equal_area: flag for setting equal_area global averaging (True/False). If true averaging based on lenght_scale
-        flag_reference_only: True
+        flag_reference_only: True 
         lenght_scale: 800.
         delta_lat: 10.
         delta_lon: 10.
@@ -65,6 +66,6 @@ outputs:
     # output_filename_y_direction: output filename meridional computation
     output_lon_resolution: 1.
     output_lat_resolution: 1.
-    output_filename_x_direction: psd_x_direction_natl60.nc
-    output_filename_y_direction: psd_y_direction_natl60.nc
+    output_filename_x_direction: psd_x_direction_10x10.nc
+    output_filename_y_direction: psd_y_direction_10x10.nc
 

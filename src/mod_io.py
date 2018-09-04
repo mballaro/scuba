@@ -60,6 +60,59 @@ def read_grid_field(input_file_reference, lon_name, lat_name, field_name,
     return lon_ref_map, lat_ref_map, sla_ref_map, delta_lon_in
 
 
+def read_grid_fieldT(input_file_reference, lon_name, lat_name, field_name,
+                    study_lon_min, study_lon_max, study_lat_min, study_lat_max, flag_ewp):
+    """
+    Read input field from netcdf file
+    :param input_file_reference:
+    :param lon_name:
+    :param lat_name:
+    :param field_name:
+    :param study_lon_min:
+    :param study_lon_max:
+    :param study_lat_min:
+    :param study_lat_max:
+    :param flag_ewp:
+    :return:
+    """
+
+    # Read reference MDT map
+    fid = Dataset(input_file_reference, 'r')
+    lon_ref_map = fid.variables[lon_name][:]
+    lat_ref_map = fid.variables[lat_name][:]
+    time_ref_map = fid.variables["time"][:]
+    ii_min = find_nearest_index(lon_ref_map, study_lon_min - buffer_zone)
+    ii_max = find_nearest_index(lon_ref_map, study_lon_max + buffer_zone)
+    jj_min = find_nearest_index(lat_ref_map, study_lat_min - buffer_zone)
+    jj_max = find_nearest_index(lat_ref_map, study_lat_max + buffer_zone)
+    sla_ref_map = fid.variables[field_name][:, jj_min:jj_max, ii_min:ii_max]
+    lon_ref_map = fid.variables[lon_name][ii_min:ii_max]
+    lat_ref_map = fid.variables[lat_name][jj_min:jj_max]
+    fid.close()
+
+    delta_lon_in = np.abs(lon_ref_map[0] - lon_ref_map[1])
+
+    if flag_ewp:
+        npt_x_extra = np.int(20 / delta_lon_in)  # add 20 degree extra point on left and right
+        lx = sla_ref_map[0, 0, :].size
+        sla_ref_map_east = sla_ref_map[:, :, 0:npt_x_extra]
+        lon_ref_map_east = lon_ref_map[0:npt_x_extra]
+        sla_ref_map_west = sla_ref_map[:, :, lx - npt_x_extra:]
+        lon_ref_map_west = lon_ref_map[lx - npt_x_extra:]
+
+        tmp = np.concatenate((lon_ref_map_west - 360., lon_ref_map), axis=-1)
+        final_lon = np.concatenate((tmp, lon_ref_map_east + 360), axis=-1)
+        tmp = np.concatenate((sla_ref_map_west, sla_ref_map), axis=-1)
+        final_sla = np.concatenate((tmp, sla_ref_map_east), axis=-1)
+
+        sla_ref_map = final_sla
+        lon_ref_map = final_lon
+
+    sla_ref_map = np.ma.masked_where(np.abs(sla_ref_map) > 1.E10, sla_ref_map)
+
+    return lon_ref_map, lat_ref_map, time_ref_map, sla_ref_map, delta_lon_in
+
+
 def read_mdt(input_file_reference, study_lon_min, study_lon_max, study_lat_min, study_lat_max, flag_ewp):
     """
 
@@ -208,6 +261,24 @@ def read_along_track(input_file_alongtrack,
     return slap, timep, lonp, latp
 
 
+def read_tide_gauge(filename):
+    """
+
+    :param filename:
+    :return:
+    """
+
+    nc = Dataset(filename, 'r')
+    time_tg = nc.variables['time'][:]
+    sla_alti = nc.variables['SLA_Alti'][:]
+    sla_tg = nc.variables['SLA_TG'][:]
+    lat_tg = nc.Latitude_TG
+    lon_tg = nc.Longitude_TG
+    nc.close()
+
+    return sla_tg, sla_alti, time_tg, lat_tg, lon_tg
+
+
 def read_cls_format(fcid):
     """
     Read sea level anomaly, lon and lat from CLS maps
@@ -269,7 +340,8 @@ def write_netcdf_output(output_netcdf_file,
                         output_autocorrelation_study=None,
                         output_autocorrelation_study_zero_crossing=None,
                         output_mean_ps_diff_sla_ref_sla_study=None, output_mean_psd_diff_sla_ref_sla_study=None,
-                        output_mean_coherence=None, output_effective_resolution=None, output_useful_resolution=None):
+                        output_mean_coherence=None, output_effective_resolution=None, output_useful_resolution=None,
+                        output_cross_correlation=None):
     """
 
     :param output_netcdf_file:
@@ -458,5 +530,66 @@ def write_netcdf_output(output_netcdf_file,
         useful_resolution_out.long_name = "useful/available resolution study field computed from ratio " \
                                           "between study and reference power spectrum"
         useful_resolution_out.comment = "useful/available resolution is the wavenumber where the ratio = 0.5"
+
+    if output_cross_correlation is not None:
+        nc_out.createDimension('dc', np.shape(np.asarray(output_cross_correlation))[1])
+        array19 = np.swapaxes(
+            np.asarray(output_cross_correlation).reshape(
+                (vlat.size, vlon.size, np.shape(np.asarray(output_cross_correlation))[1])).T, 1, 2)
+        cross_correlation = nc_out.createVariable('cross_correlation', 'f8', ('dc', 'y', 'x'))
+        cross_correlation.units = ''
+        cross_correlation.coordinates = "segment_lenght lat lon"
+        cross_correlation.long_name = "squared cross_correlation"
+        cross_correlation[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(array19 == 0, array19))
+
+    nc_out.close()
+
+
+def write_netcdf_TG(filename, frequency_out, effective_resolution_out, useful_resolution_out,
+                    lat_out, lon_out,
+                    spectrum_TG_out, spectrum_SLA_at_TG,
+                    power_spectrum_TG_out, power_spectrum_SLA_at_TG,
+                    coherence_out):
+
+
+    nc_out = Dataset(filename, 'w', format='NETCDF4')
+    x = nc_out.createDimension('x', np.asarray(effective_resolution_out).size)
+    t = nc_out.createDimension('t', np.asarray(frequency_out)[0, :].size)
+
+    data_effective_resolution_out = nc_out.createVariable('effective_resolution', 'f8', 'x')
+    data_effective_resolution_out[:] = np.asarray(effective_resolution_out)
+    data_effective_resolution_out.units = 'days'
+    data_effective_resolution_out.longname = 'lenghtscale where spectral coherence = 0.5'
+
+    data_useful_resolution_out = nc_out.createVariable('useful_resolution', 'f8', 'x')
+    data_useful_resolution_out[:] = np.asarray(useful_resolution_out)
+    data_useful_resolution_out.units = 'days'
+    data_useful_resolution_out.longname = 'lenghtscale where spectral ratio = 0.5'
+
+    data_lat_out = nc_out.createVariable('lat', 'f8', 'x')
+    data_lat_out[:] = np.asarray(lat_out)
+    data_lat_out.longname = 'latitude tide gauge'
+
+    data_lon_out = nc_out.createVariable('lon', 'f8', 'x')
+    data_lon_out[:] = np.asarray(lon_out)
+    data_lon_out.longname = 'longitude tide gauge'
+
+    data_spectrum_TG_out = nc_out.createVariable('spectrum_TG', 'f8', ('x', 't'))
+    data_spectrum_TG_out[:, :] = np.asarray(spectrum_TG_out)
+
+    data_spectrum_SLA_at_TG = nc_out.createVariable('spectrum_alti', 'f8', ('x', 't'))
+    data_spectrum_SLA_at_TG[:, :] = np.asarray(spectrum_SLA_at_TG)
+
+    data_power_spectrum_TG_out = nc_out.createVariable('power_spectrum_TG', 'f8', ('x', 't'))
+    data_power_spectrum_TG_out[:, :] = np.asarray(power_spectrum_TG_out)
+
+    data_power_spectrum_SLA_at_TG = nc_out.createVariable('power_spectrum_alti', 'f8', ('x', 't'))
+    data_power_spectrum_SLA_at_TG[:, :] = np.asarray(power_spectrum_SLA_at_TG)
+
+    data_coherency_out = nc_out.createVariable('coherence', 'f8', ('x', 't'))
+    data_coherency_out[:, :] = np.asarray(coherence_out)
+
+    data_frequency_out = nc_out.createVariable('frequency', 'f8', ('x', 't'))
+    data_frequency_out[:, :] = np.asarray(frequency_out)
 
     nc_out.close()

@@ -207,6 +207,7 @@ def compute_segment_alongtrack(sla, lon_along_track, lat_along_track, time_along
     list_lat_segment = []
     list_lon_segment = []
     list_sla_segment = []
+    list_crosscorrelation_segment = []
 
     if msla is not None:
         list_msla_segment = []
@@ -282,23 +283,131 @@ def compute_segment_alongtrack(sla, lon_along_track, lat_along_track, time_along
                         sla_segment = np.ma.compressed(np.ma.masked_where(np.ma.is_masked(msla_segment), sla_segment))
                         msla_segment = np.ma.compressed(msla_segment)
 
-                    # plt.plot(sla_segment, color='r', label="SLA along-track")
-                    # plt.plot(msla_segment, color='b', label='interpolated MSLA')
-                    # plt.legend(loc="best")
-                    # plt.show()
+                    #plt.plot(sla_segment, color='r', label="SLA along-track")
+                    #plt.plot(msla_segment, color='b', label='interpolated MSLA')
+                    #plt.legend(loc="best")
+                    #plt.show()
+                    # Cross correlation
+                    #import scipy
+                    # normalization
+                    fld1 = (sla_segment - np.mean(sla_segment)) / (np.std(sla_segment) * len(sla_segment))
+                    fld2 = (msla_segment - np.mean(msla_segment)) / (np.std(msla_segment))
+                    cross_correlation = np.correlate(fld1, fld2, mode='same')
+                    #cross_correlation = np.correlate(sla_segment-np.mean(sla_segment), msla_segment, mode = 'same')
+                    #cross_correlation = np.square(scipy.signal.correlate(sla_segment, msla_segment, mode='full'))
 
                 if sla_segment.size > 0:
                     list_sla_segment.append(sla_segment)
                     list_lon_segment.append(mean_lon_sub_segment)
                     list_lat_segment.append(mean_lat_sub_segment)
+                    list_crosscorrelation_segment.append(cross_correlation)
                     if msla is not None:
                         list_msla_segment.append(msla_segment)
 
     if msla is not None:
-        return list_sla_segment, list_lon_segment, list_lat_segment, delta_x, npt, list_msla_segment
+        return list_sla_segment, list_lon_segment, list_lat_segment, delta_x, npt, list_msla_segment, \
+               list_crosscorrelation_segment
 
     else:
         return list_sla_segment, list_lon_segment, list_lat_segment, delta_x, npt
+
+
+def compute_segment_tide_gauge(sla_tg, time_tg, lenght_scale, delta_t, msla=None):
+    """
+
+    :param sla_tg:
+    :param time_tg:
+    :param lenght_scale:
+    :param msla:
+    :return:
+    """
+
+    list_lat_segment = []
+    list_lon_segment = []
+    list_sla_segment = []
+    list_crosscorrelation_segment = []
+
+    if msla is not None:
+        list_msla_segment = []
+
+    # Get number of point to consider for resolution = lenghscale
+    npt = int(lenght_scale / delta_t)
+
+    # cut track when diff time longer than 4*delta_t
+    indi = np.where((np.diff(time_tg) > delta_t))[0]
+
+    if len(indi) > 1:
+        track_segment_lenght = np.insert(np.diff(indi), [0], indi[0])
+    else:
+        track_segment_lenght = [time_tg.size]
+        indi = [time_tg.size]
+
+    # Long track >= npt
+    selected_track_segment = np.where(track_segment_lenght >= npt)[0]
+
+    if selected_track_segment.size > 0:
+
+        for track in selected_track_segment:
+
+            if track-1 >= 0:
+                index_start_selected_track = indi[track-1]
+                index_end_selected_track = indi[track]
+            else:
+                index_start_selected_track = 0
+                index_end_selected_track = indi[track]
+
+            start_point = index_start_selected_track
+            end_point = index_end_selected_track
+
+            for sub_segment_point in range(start_point, end_point - npt, int(npt*segment_overlapping)):
+
+                sla_segment = np.ma.masked_invalid(sla_tg[sub_segment_point:sub_segment_point + npt])
+
+                if msla is not None:
+                    msla_segment = np.ma.masked_invalid(msla[sub_segment_point:sub_segment_point + npt])
+                    if np.ma.is_masked(msla_segment):
+                        # print "MASK detected"
+                        sla_segment = np.ma.compressed(np.ma.masked_where(np.ma.is_masked(msla_segment), sla_segment))
+                        msla_segment = np.ma.compressed(msla_segment)
+
+                    # plt.plot(sla_segment, color='r', label="SLA tide gauge")
+                    # plt.plot(msla_segment, color='b', label='best correlated MSLA')
+                    # plt.legend(loc="best")
+                    # plt.show()
+
+                    # Cross correlation
+                    # normalization
+                    fld1 = (sla_segment - np.mean(sla_segment)) / (np.std(sla_segment) * len(sla_segment))
+                    fld2 = (msla_segment - np.mean(msla_segment)) / (np.std(msla_segment))
+                    cross_correlation = np.correlate(fld1, fld2, mode='same')
+
+                if sla_segment.size > 0:
+                    list_sla_segment.append(sla_segment)
+                    list_crosscorrelation_segment.append(cross_correlation)
+                    if msla is not None:
+                        list_msla_segment.append(msla_segment)
+
+    if msla is not None:
+        return list_sla_segment, list_msla_segment
+
+    else:
+        return list_sla_segment
+
+
+def cross_correlation(a1, a2):
+        lags = range(-len(a1)+1, len(a2))
+        cs = []
+        for lag in lags:
+            idx_lower_a1 = max(lag, 0)
+            idx_lower_a2 = max(-lag, 0)
+            idx_upper_a1 = min(len(a1), len(a1)+lag)
+            idx_upper_a2 = min(len(a2), len(a2)-lag)
+            b1 = a1[idx_lower_a1:idx_upper_a1]
+            b2 = a2[idx_lower_a2:idx_upper_a2]
+            c = np.correlate(b1, b2)[0]
+            c = c / np.sqrt((b1**2).sum() * (b2**2).sum())
+            cs.append(c)
+        return cs
 
 
 def plot_segment(xlon_segment, xlat_segment, xlon_subsegment, xlat_subsegment, mean_lon, mean_lat, prefix, nb_fig):

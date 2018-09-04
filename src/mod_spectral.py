@@ -7,7 +7,8 @@ from mod_constant import *
 
 def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                          sla_ref_segments, lon_segment, lat_segment,
-                         delta_x, npt, equal_area, greenwhich_start, sla_study_segments=None):
+                         delta_x, npt, equal_area, greenwhich_start, sla_study_segments=None,
+                         cross_correlation_segments=None):
     """
     Spectral computation
     :param grid_lon:
@@ -46,6 +47,7 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
         list_autocorrelation_study = []
         list_autocorrelation_study_zero_crossing = []
         list_autocorrelation_distance = []
+        list_cross_correlation = []
 
     for ilat in grid_lat:
 
@@ -158,6 +160,9 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                     else:
                         autocorrelation_zero_crossing = 0.
 
+
+                    #print cross_correlation, cross_correlation.size, selected_sla_study_segments.size
+
                     list_mean_ps_sla_study.append(ps_sla_study)
                     list_mean_ps_diff_sla_study_sla_ref.append(ps_diff_sla_study_sla_ref)
                     list_mean_psd_sla_study.append(psd_sla_study)
@@ -167,6 +172,9 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                     list_useful_resolution.append(useful_resolution)
                     list_autocorrelation_study.append(autocorrelation)
                     list_autocorrelation_study_zero_crossing.append(autocorrelation_zero_crossing)
+
+                    mean_cross_correlation = np.mean(cross_correlation_segments[selected_segment], axis=0)
+                    list_cross_correlation.append(mean_cross_correlation)
 
             else:
                 list_effective_lon.append(effective_lon)
@@ -189,6 +197,7 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                     list_useful_resolution.append(0.)
                     list_autocorrelation_study.append(np.zeros(int(round(npt/4.0))))
                     list_autocorrelation_study_zero_crossing.append(0.)
+                    list_cross_correlation.append(np.zeros((npt)))
 
     if sla_study_segments is not None:
 
@@ -198,13 +207,109 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                list_mean_ps_sla_study, list_mean_ps_diff_sla_study_sla_ref, \
                list_mean_psd_sla_study, list_mean_psd_diff_sla_study_sla_ref, \
                list_mean_coherence, list_effective_resolution, list_useful_resolution, \
-               list_autocorrelation_study, list_autocorrelation_study_zero_crossing
+               list_autocorrelation_study, list_autocorrelation_study_zero_crossing, list_cross_correlation
 
     else:
 
         return list_effective_lon, list_effective_lat, list_mean_frequency, \
                list_mean_psd_sla_ref, list_mean_ps_sla_ref, list_nb_segment, \
                list_autocorrelation_ref, list_autocorrelation_ref_zero_crossing, list_autocorrelation_distance
+
+
+def spectral_computation_tide_gauge(sla_ref_segments, delta_t, npt, sla_study_segments=None):
+    """
+
+    :param sla_ref_segments:
+    :param delta_t:
+    :param npt:
+    :param sla_study_segments:
+    :return:
+    """
+
+    # Power spectrum reference field
+    wavenumber, ps_sla_ref = scipy.signal.welch(
+        sla_ref_segments, fs=1.0 / delta_t, nperseg=npt,
+        scaling='spectrum', noverlap=0)
+
+    # Power spectrum density reference field
+    wavenumber, psd_sla_ref = scipy.signal.welch(
+        sla_ref_segments, fs=1.0 / delta_t, nperseg=npt,
+        scaling='density', noverlap=0)
+
+    # Autocorrelation function of study field
+    autocorrelation_ref, distance = compute_autocorrelation(psd_sla_ref, wavenumber)
+    try:
+        autocorrelation_ref_zero_crossing = compute_resolution(autocorrelation_ref, distance, threshold=0.0)
+    except:
+        autocorrelation_ref_zero_crossing = 0.
+
+    if autocorrelation_ref_zero_crossing > 0.:
+        autocorrelation_ref_zero_crossing = 1.0 / autocorrelation_ref_zero_crossing
+    else:
+        autocorrelation_ref_zero_crossing = 0.
+
+    if sla_study_segments is not None:
+
+        diff_sla_study_sla_ref = sla_study_segments - sla_ref_segments
+
+        # Power spectrum of the error between to field
+        wavenumber, ps_diff_sla_study_sla_ref = scipy.signal.welch(
+            diff_sla_study_sla_ref, fs=1.0 / delta_t, nperseg=npt, scaling='spectrum', noverlap=0)
+
+        # Power spectrum density of the error between to field
+        wavenumber, psd_diff_sla_study_sla_ref = scipy.signal.welch(
+            diff_sla_study_sla_ref, fs=1.0 / delta_t, nperseg=npt, scaling='density', noverlap=0)
+
+        # Power spectrum study field
+        wavenumber, ps_sla_study = scipy.signal.welch(
+            sla_study_segments, fs=1.0 / delta_t, nperseg=npt,
+            scaling='spectrum', noverlap=0)
+
+        # Power spectrum density study field
+        wavenumber, psd_sla_study = scipy.signal.welch(
+            sla_study_segments, fs=1.0 / delta_t, nperseg=npt,
+            scaling='density', noverlap=0)
+
+        # Magnitude square coherence between the ref and study field
+        wavenumber, coherence = scipy.signal.coherence(
+            sla_study_segments,
+            sla_ref_segments, fs=1.0 / delta_t, nperseg=npt, noverlap=0)
+
+        # Effective resolution
+        effective_resolution = compute_resolution(coherence, wavenumber)
+
+        # Useful resolution
+        useful_resolution = compute_resolution(psd_sla_study / psd_sla_ref, wavenumber)
+
+        # Autocorrelation function of study field
+        autocorrelation_study, distance = compute_autocorrelation(psd_sla_study, wavenumber)
+        try:
+            autocorrelation_study_zero_crossing = compute_resolution(
+                autocorrelation_study, distance, threshold=0.0)
+        except:
+            autocorrelation_study_zero_crossing = 0.
+
+        if autocorrelation_study_zero_crossing > 0.:
+            autocorrelation_study_zero_crossing = 1.0 / autocorrelation_study_zero_crossing
+        else:
+            autocorrelation_study_zero_crossing = 0.
+
+        return wavenumber, psd_sla_ref, ps_sla_ref, autocorrelation_ref, autocorrelation_ref_zero_crossing,\
+               distance, ps_sla_study, ps_diff_sla_study_sla_ref, \
+               psd_sla_study, psd_diff_sla_study_sla_ref, coherence, effective_resolution, useful_resolution, \
+               autocorrelation_study, autocorrelation_study_zero_crossing
+
+    else:
+
+        return wavenumber, psd_sla_ref, ps_sla_ref, autocorrelation_ref, autocorrelation_ref_zero_crossing,\
+               distance
+
+
+def compute_lombscargle_periodogram(time_sample, sla_sample, output_freq_sample):
+
+    pgram = scipy.signal.lombscargle(time_sample, sla_sample, output_freq_sample)
+
+    return pgram
 
 
 def compute_resolution(array, frequency, threshold=0.5):

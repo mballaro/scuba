@@ -140,7 +140,8 @@ else:
     # Prepare segment
     print("start segment computation", str(datetime.datetime.now()))
 
-    computed_sla_segment, computed_lon_segment, computed_lat_segment, delta_x, npt, computed_msla_segment = \
+    computed_sla_segment, computed_lon_segment, computed_lat_segment, delta_x, npt, computed_msla_segment, \
+    computed_crosscorrelation_segment = \
         compute_segment_alongtrack(slap, lonp, latp, timep, mission, mission_management,
                                    lenght_scale, MSLA_interpolated)
 
@@ -154,13 +155,14 @@ else:
     output_mean_ps_sla_study, output_mean_ps_diff_sla_study_sla_ref, \
     output_mean_psd_sla_study, output_mean_psd_diff_sla_study_sla_ref, \
     output_mean_coherence, output_effective_resolution, output_useful_resolution, \
-    output_autocorrelation_study, output_autocorrelation_study_zero_crossing = \
+    output_autocorrelation_study, output_autocorrelation_study_zero_crossing, output_cross_correlation = \
         spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                              np.asarray(computed_sla_segment),
                              np.asarray(computed_lon_segment),
                              np.asarray(computed_lat_segment),
                              delta_x, npt, equal_area, flag_greenwich_start,
-                             sla_study_segments=np.asarray(computed_msla_segment))
+                             sla_study_segments=np.asarray(computed_msla_segment),
+                             cross_correlation_segments=np.asarray(computed_crosscorrelation_segment))
 
     print("end gridding", str(datetime.datetime.now()))
 
@@ -181,6 +183,7 @@ else:
                         output_mean_psd_diff_sla_ref_sla_study=output_mean_psd_diff_sla_study_sla_ref,
                         output_mean_coherence=output_mean_coherence,
                         output_effective_resolution=output_effective_resolution,
-                        output_useful_resolution=output_useful_resolution)
+                        output_useful_resolution=output_useful_resolution,
+                        output_cross_correlation=output_cross_correlation)
 
     print("end writing", str(datetime.datetime.now()))

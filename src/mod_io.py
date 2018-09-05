@@ -279,6 +279,23 @@ def read_tide_gauge(filename):
     return sla_tg, sla_alti, time_tg, lat_tg, lon_tg
 
 
+def read_tao(filename):
+    """
+
+    :param filename:
+    :return:
+    """
+
+    nc = Dataset(filename, 'r')
+    ssh_tao = nc.variables['DYN_13'][:, 0, 0, 0] / 100
+    lon_tao = nc.variables['lon'][:]
+    lat_tao = nc.variables['lat'][:]
+    time_tao = nc.variables['time'][:] - 2433660 + 365 + 12
+    nc.close()
+
+    return ssh_tao, time_tao, lat_tao, lon_tao
+
+
 def read_cls_format(fcid):
     """
     Read sea level anomaly, lon and lat from CLS maps
@@ -585,6 +602,56 @@ def write_netcdf_TG(filename, frequency_out, effective_resolution_out, useful_re
 
     data_power_spectrum_SLA_at_TG = nc_out.createVariable('power_spectrum_alti', 'f8', ('x', 't'))
     data_power_spectrum_SLA_at_TG[:, :] = np.asarray(power_spectrum_SLA_at_TG)
+
+    data_coherency_out = nc_out.createVariable('coherence', 'f8', ('x', 't'))
+    data_coherency_out[:, :] = np.asarray(coherence_out)
+
+    data_frequency_out = nc_out.createVariable('frequency', 'f8', ('x', 't'))
+    data_frequency_out[:, :] = np.asarray(frequency_out)
+
+    nc_out.close()
+
+
+def write_netcdf_TAO(filename, frequency_out, effective_resolution_out, useful_resolution_out,
+                    lat_out, lon_out,
+                    spectrum_TAO_out, spectrum_SSH_at_TAO,
+                    power_spectrum_TAO_out, power_spectrum_SSH_at_TAO,
+                    coherence_out):
+
+
+    nc_out = Dataset(filename, 'w', format='NETCDF4')
+    x = nc_out.createDimension('x', np.asarray(effective_resolution_out).size)
+    t = nc_out.createDimension('t', np.asarray(frequency_out)[0, :].size)
+
+    data_effective_resolution_out = nc_out.createVariable('effective_resolution', 'f8', 'x')
+    data_effective_resolution_out[:] = np.asarray(effective_resolution_out)
+    data_effective_resolution_out.units = 'days'
+    data_effective_resolution_out.longname = 'lenghtscale where spectral coherence = 0.5'
+
+    data_useful_resolution_out = nc_out.createVariable('useful_resolution', 'f8', 'x')
+    data_useful_resolution_out[:] = np.asarray(useful_resolution_out)
+    data_useful_resolution_out.units = 'days'
+    data_useful_resolution_out.longname = 'lenghtscale where spectral ratio = 0.5'
+
+    data_lat_out = nc_out.createVariable('lat', 'f8', 'x')
+    data_lat_out[:] = np.asarray(lat_out)
+    data_lat_out.longname = 'latitude TAO'
+
+    data_lon_out = nc_out.createVariable('lon', 'f8', 'x')
+    data_lon_out[:] = np.asarray(lon_out)
+    data_lon_out.longname = 'longitude TAO'
+
+    data_spectrum_TG_out = nc_out.createVariable('spectrum_TAO', 'f8', ('x', 't'))
+    data_spectrum_TG_out[:, :] = np.asarray(spectrum_TAO_out)
+
+    data_spectrum_SLA_at_TG = nc_out.createVariable('spectrum_alti', 'f8', ('x', 't'))
+    data_spectrum_SLA_at_TG[:, :] = np.asarray(spectrum_SSH_at_TAO)
+
+    data_power_spectrum_TG_out = nc_out.createVariable('power_spectrum_TAO', 'f8', ('x', 't'))
+    data_power_spectrum_TG_out[:, :] = np.asarray(power_spectrum_TAO_out)
+
+    data_power_spectrum_SLA_at_TG = nc_out.createVariable('power_spectrum_alti', 'f8', ('x', 't'))
+    data_power_spectrum_SLA_at_TG[:, :] = np.asarray(power_spectrum_SSH_at_TAO)
 
     data_coherency_out = nc_out.createVariable('coherence', 'f8', ('x', 't'))
     data_coherency_out[:, :] = np.asarray(coherence_out)

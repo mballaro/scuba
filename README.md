@@ -93,7 +93,13 @@ This test cases performs spectral analysis on altimeter maps and along-track dat
 
 ![TIDE](https://github.com/mballaro/scuba/blob/master/share/scuba_files/effective_temporal_resolution.png)
 
-![SPECTRAL](https://github.com/mballaro/scuba/blob/master/share/scuba_files/temporal_spectrum.png)
+![SPECTRAL_TIDE](https://github.com/mballaro/scuba/blob/master/share/scuba_files/temporal_spectrum.png)
+
+    >> python display_scuba_tao.py ../test_case/psd_tao.nc
+
+![TAO](https://github.com/mballaro/scuba/blob/master/share/scuba_files/effective_temporal_resolution_tao.png)
+
+![SPECTRAL_TAO](https://github.com/mballaro/scuba/blob/master/share/scuba_files/temporal_spectrum_tao.png)
 
 # Authors and Contributors
 * Maxime Ballarotta, Clément Ubelmann

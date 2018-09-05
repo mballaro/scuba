@@ -237,7 +237,11 @@ def spectral_computation_tide_gauge(sla_ref_segments, delta_t, npt, sla_study_se
         scaling='density', noverlap=0)
 
     # Autocorrelation function of study field
-    autocorrelation_ref, distance = compute_autocorrelation(psd_sla_ref, wavenumber)
+    try:
+        autocorrelation_ref, distance = compute_autocorrelation(psd_sla_ref, wavenumber)
+    except ValueError:
+        autocorrelation_ref, distance = None, None
+
     try:
         autocorrelation_ref_zero_crossing = compute_resolution(autocorrelation_ref, distance, threshold=0.0)
     except:
@@ -275,6 +279,9 @@ def spectral_computation_tide_gauge(sla_ref_segments, delta_t, npt, sla_study_se
             sla_study_segments,
             sla_ref_segments, fs=1.0 / delta_t, nperseg=npt, noverlap=0)
 
+        #plt.plot(sla_study_segments, color='r')
+        #plt.plot(sla_ref_segments, color='b')
+        #plt.show()
         # Effective resolution
         effective_resolution = compute_resolution(coherence, wavenumber)
 
@@ -282,7 +289,11 @@ def spectral_computation_tide_gauge(sla_ref_segments, delta_t, npt, sla_study_se
         useful_resolution = compute_resolution(psd_sla_study / psd_sla_ref, wavenumber)
 
         # Autocorrelation function of study field
-        autocorrelation_study, distance = compute_autocorrelation(psd_sla_study, wavenumber)
+        try:
+            autocorrelation_study, distance = compute_autocorrelation(psd_sla_study, wavenumber)
+        except ValueError:
+            autocorrelation_study, distance = None, None
+
         try:
             autocorrelation_study_zero_crossing = compute_resolution(
                 autocorrelation_study, distance, threshold=0.0)

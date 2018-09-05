@@ -1,0 +1,20 @@
+
+inputs:
+   # input_file_directory: folder containing SLA from tide gauge and CMEMS maps (one file per TG)
+   input_tao_file_directory: ./inputs/tao/
+   input_map_file: /data/MSA_ETU/mballarotta/ETUDE_EFFECTIVE_RESOLUTION/ETUDE_TEMPORAL_EFFECTIVE_RESOLUTION_TAO/prepration_data/TAO_NOAA/sla_1993-2017_DUACS-DT2014_light.nc
+     
+properties:
+    # corr_coef: minimum correlation criterion threshold between SLA map and SLA TG to perform analysis
+    corr_coef: 0.
+
+    spectral_parameters:
+        # lenght_scale: segment lenght in days to consider in the spectral subsampling (ex: 100) 
+        # delta_t: temporal sampling input
+        lenght_scale: 100.
+        delta_t: 1.
+        
+outputs:
+    # output_filename: output filename spectral computation
+    output_filename: psd_tao.nc
+

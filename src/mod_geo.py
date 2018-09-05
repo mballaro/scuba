@@ -29,9 +29,6 @@ def find_nearest_index_lonlat(array_lon, array_lat, value_lon, value_lat):
     idy = np.argmin(np.abs(array_lat - value_lat), axis=0)
     idx = np.argmin(np.abs(array_lon[idy[0], :] - value_lon))
 
-    for ii in idx:
-        if ii in idy:
-            return i
     return idx, idy[0]
 
 

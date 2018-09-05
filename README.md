@@ -89,6 +89,11 @@ This test cases performs spectral analysis on altimeter maps and along-track dat
 
 ![TD](https://github.com/mballaro/scuba/blob/master/share/scuba_files/spectral_taylor_diagram.png)
 
+    >> python display_scuba_tide_gauge.py ../test_case/psd_tide_gauge.nc
+
+![TIDE](https://github.com/mballaro/scuba/blob/master/share/scuba_files/effective_temporal_resolution.png)
+
+![SPECTRAL](https://github.com/mballaro/scuba/blob/master/share/scuba_files/temporal_spectrum.png)
 
 # Authors and Contributors
 * Maxime Ballarotta, Clément Ubelmann

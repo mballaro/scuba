@@ -29,7 +29,37 @@ def find_nearest_index_lonlat(array_lon, array_lat, value_lon, value_lat):
     idy = np.argmin(np.abs(array_lat - value_lat), axis=0)
     idx = np.argmin(np.abs(array_lon[idy[0], :] - value_lon))
 
+    for ii in idx:
+        if ii in idy:
+            return i
     return idx, idy[0]
+
+
+def find_nearest_common_index(array_lon, array_lat, value_lon, value_lat):
+    """
+    Function find common nearest index
+    :param array_lon:
+    :param array_lat:
+    :param value_lon:
+    :param value_lat:
+    :return:
+    """
+    idx = np.argsort(np.abs(array_lon - value_lon), axis=0)
+    idy = np.argsort(np.abs(array_lat - value_lat), axis=0)
+
+    ii = 0
+    location_idx = []
+    location_idy = []
+    for value in idx:
+        location_idx.append(ii)
+        ii += 1
+        location_idy.append(np.int(np.where(idy == value)[0]))
+
+    min_index = np.where(np.array(location_idx) + np.array(location_idy) ==
+                         np.min(np.array(location_idx) + np.array(location_idy)))[0]
+
+    return idx[min_index][0]
+
 
 def change_in_latitude(kilometers):
     """

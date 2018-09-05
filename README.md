@@ -32,6 +32,7 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
 * `scuba_alongtrack.py` performs spectral analysis on along-track data or between along-track and gridded data
 * `scuba_grid.py` performs spectral analysis on gridded data or between two gridded data
 * `scuba_TG.py` performs spectral analysis on tide gauge and gridded data timeseries
+* `scuba_TAO.py` performs spectral analysis on TAO mooring and gridded data timeseries
 
 The program is structured as follow:
 * 1- reading the dataset

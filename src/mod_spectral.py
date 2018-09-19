@@ -160,7 +160,6 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                     else:
                         autocorrelation_zero_crossing = 0.
 
-
                     #print cross_correlation, cross_correlation.size, selected_sla_study_segments.size
 
                     list_mean_ps_sla_study.append(ps_sla_study)
@@ -173,8 +172,8 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                     list_autocorrelation_study.append(autocorrelation)
                     list_autocorrelation_study_zero_crossing.append(autocorrelation_zero_crossing)
 
-                    mean_cross_correlation = np.mean(cross_correlation_segments[selected_segment], axis=0)
-                    list_cross_correlation.append(mean_cross_correlation)
+                    # mean_cross_correlation = np.mean(cross_correlation_segments[selected_segment], axis=0)
+                    # list_cross_correlation.append(mean_cross_correlation)
 
             else:
                 list_effective_lon.append(effective_lon)
@@ -197,7 +196,7 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                     list_useful_resolution.append(0.)
                     list_autocorrelation_study.append(np.zeros(int(round(npt/4.0))))
                     list_autocorrelation_study_zero_crossing.append(0.)
-                    list_cross_correlation.append(np.zeros((npt)))
+                    # list_cross_correlation.append(np.zeros((npt)))
 
     if sla_study_segments is not None:
 
@@ -207,7 +206,8 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                list_mean_ps_sla_study, list_mean_ps_diff_sla_study_sla_ref, \
                list_mean_psd_sla_study, list_mean_psd_diff_sla_study_sla_ref, \
                list_mean_coherence, list_effective_resolution, list_useful_resolution, \
-               list_autocorrelation_study, list_autocorrelation_study_zero_crossing, list_cross_correlation
+               list_autocorrelation_study, list_autocorrelation_study_zero_crossing
+        #, list_cross_correlation
 
     else:
 

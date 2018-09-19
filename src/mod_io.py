@@ -9,7 +9,7 @@ from yaml import load
 
 
 def read_grid_field(input_file_reference, lon_name, lat_name, field_name,
-                    study_lon_min, study_lon_max, study_lat_min, study_lat_max, flag_ewp):
+                    study_lon_min, study_lon_max, study_lat_min, study_lat_max, flag_ewp, flag_roll):
     """
     Read input field from netcdf file
     :param input_file_reference:
@@ -27,6 +27,10 @@ def read_grid_field(input_file_reference, lon_name, lat_name, field_name,
     # Read reference MDT map
     fid = Dataset(input_file_reference, 'r')
     lon_ref_map = fid.variables[lon_name][:]
+
+    if flag_roll:
+        lon_ref_map = np.where(lon_ref_map > 180, lon_ref_map-360, lon_ref_map)
+
     lat_ref_map = fid.variables[lat_name][:]
     ii_min = find_nearest_index(lon_ref_map, study_lon_min - buffer_zone)
     ii_max = find_nearest_index(lon_ref_map, study_lon_max + buffer_zone)
@@ -36,6 +40,9 @@ def read_grid_field(input_file_reference, lon_name, lat_name, field_name,
     lon_ref_map = fid.variables[lon_name][ii_min:ii_max]
     lat_ref_map = fid.variables[lat_name][jj_min:jj_max]
     fid.close()
+
+    if flag_roll:
+        lon_ref_map = np.where(lon_ref_map > 180, lon_ref_map-360, lon_ref_map)
 
     delta_lon_in = np.abs(lon_ref_map[0] - lon_ref_map[1])
 

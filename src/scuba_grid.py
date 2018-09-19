@@ -79,7 +79,7 @@ lon_ref_map_study, lat_ref_map_study, sla_ref_map_study, delta_lon_in = read_gri
                                                                                         ref_field_name,
                                                                                         study_lon_min, study_lon_max,
                                                                                         study_lat_min, study_lat_max,
-                                                                                        flag_ewp)
+                                                                                        flag_ewp, flag_roll)
 
 if flag_reference_only:
 
@@ -152,7 +152,7 @@ if flag_reference_only:
 
 else:
 
-    lon_study_map_study, lat_study_map_study, sla_study_map_study, delta_lon_in = read_grid_field(input_file_reference,
+    lon_study_map_study, lat_study_map_study, sla_study_map_study, delta_lon_in = read_grid_field(input_file_study,
                                                                                                   study_lon_name,
                                                                                                   study_lat_name,
                                                                                                   study_field_name,
@@ -160,11 +160,12 @@ else:
                                                                                                   study_lon_max,
                                                                                                   study_lat_min,
                                                                                                   study_lat_max,
-                                                                                                  flag_ewp)
+                                                                                                  flag_ewp, flag_roll)
 
+    sla_study_map_study = sla_study_map_study/100.  # in meters
     # TEST TO BE REMOVED
     # sla_study_map_study = np.copy(sla_ref_map_study)
-    sla_study_map_study = np.roll(sla_study_map_study, 5, axis=0)
+    # sla_study_map_study = np.roll(sla_study_map_study, 5, axis=0)
 
     print("start segment computation", str(datetime.datetime.now()))
 

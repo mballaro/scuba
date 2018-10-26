@@ -8,10 +8,12 @@ inputs:
    ref_lon_name: lon
    ref_lat_name: lat
    ref_field_name: sossheig
+   ref_field_scale_factor: 1
    input_file_study: ./inputs/natl60/NATL60-CJM165_y2012m06.1d.SSH_reg.nc
    study_lon_name: lon
    study_lat_name: lat
    study_field_name: sossheig
+   study_field_scale_factor: 1
 
 properties:
     study_area:

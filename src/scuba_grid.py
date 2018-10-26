@@ -22,10 +22,12 @@ input_file_reference = YAML['inputs']['input_file_reference']
 ref_lon_name = YAML['inputs']['ref_lon_name']
 ref_lat_name = YAML['inputs']['ref_lat_name']
 ref_field_name = YAML['inputs']['ref_field_name']
+ref_field_scale_factor = YAML['inputs']['ref_field_scale_factor']
 input_file_study = YAML['inputs']['input_file_study']
 study_lon_name = YAML['inputs']['study_lon_name']
 study_lat_name = YAML['inputs']['study_lat_name']
 study_field_name = YAML['inputs']['study_field_name']
+study_field_scale_factor = YAML['inputs']['study_field_scale_factor']
 
 # input_map_directory = YAML['inputs']['input_map_directory']
 # map_file_pattern = YAML['inputs']['map_file_pattern']
@@ -80,6 +82,9 @@ lon_ref_map_study, lat_ref_map_study, sla_ref_map_study, delta_lon_in = read_gri
                                                                                         study_lon_min, study_lon_max,
                                                                                         study_lat_min, study_lat_max,
                                                                                         flag_ewp, flag_roll)
+
+
+sla_ref_map_study = sla_ref_map_study * ref_field_scale_factor
 
 if flag_reference_only:
 
@@ -162,7 +167,7 @@ else:
                                                                                                   study_lat_max,
                                                                                                   flag_ewp, flag_roll)
 
-    sla_study_map_study = sla_study_map_study/100.  # in meters
+    sla_study_map_study = sla_study_map_study * study_field_scale_factor
     # TEST TO BE REMOVED
     # sla_study_map_study = np.copy(sla_ref_map_study)
     # sla_study_map_study = np.roll(sla_study_map_study, 5, axis=0)

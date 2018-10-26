@@ -8,10 +8,12 @@ inputs:
    ref_lon_name: lon
    ref_lat_name: lat
    ref_field_name: mdt
+   ref_field_scale_factor : 1
    input_file_study: ./inputs/maps
    study_lon_name: 
    study_lat_name: 
    study_field_name: 
+   study_field_scale_factor: 1
    
    
 properties:

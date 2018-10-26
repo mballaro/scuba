@@ -5,7 +5,9 @@ inputs:
    # map_file_pattern: file pattern for file selection: 
    # mission: mission acronym (ex: AL, H2, J2, C2 ....)
    input_file_reference: ./inputs/alongtrack/sla_al_20140101-20140131.nc
+   ref_field_scale_factor: 1
    input_map_directory: ./inputs/maps
+   study_field_scale_factor: 1
    map_file_pattern: dt_global_allsat_phy_l4_
    mission: AL
    

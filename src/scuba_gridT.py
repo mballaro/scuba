@@ -22,10 +22,12 @@ input_file_reference = YAML['inputs']['input_file_reference']
 ref_lon_name = YAML['inputs']['ref_lon_name']
 ref_lat_name = YAML['inputs']['ref_lat_name']
 ref_field_name = YAML['inputs']['ref_field_name']
+ref_field_scale_factor = YAML['inputs']['ref_field_scale_factor']
 input_file_study = YAML['inputs']['input_file_study']
 study_lon_name = YAML['inputs']['study_lon_name']
 study_lat_name = YAML['inputs']['study_lat_name']
 study_field_name = YAML['inputs']['study_field_name']
+study_field_scale_factor = YAML['inputs']['study_field_scale_factor']
 
 # input_map_directory = YAML['inputs']['input_map_directory']
 # map_file_pattern = YAML['inputs']['map_file_pattern']
@@ -89,7 +91,7 @@ if flag_reference_only:
     freq_max = 1./delta_time
     output_freq_sample = np.linspace(freq_min, freq_max, time_sample.size)
 
-    sla_sample = sla_ref_map_study
+    sla_sample = sla_ref_map_study * study_field_scale_factor
     # compute temporal spectrum on grid
     print("start gridding", str(datetime.datetime.now()))
     lx = sla_sample[0, 0, :].size
@@ -101,9 +103,8 @@ if flag_reference_only:
     for jj in range(ly):
         for ii in range(lx):
             pgram[:, jj, ii] = compute_lombscargle_periodogram(np.float64(time_sample),
-                                                    np.float64(sla_sample[:, jj, ii]),
-                                                    np.float64(output_freq_sample))
-
+                                                               np.float64(sla_sample[:, jj, ii]),
+                                                               np.float64(output_freq_sample))
 
     print("end gridding", str(datetime.datetime.now()))
 

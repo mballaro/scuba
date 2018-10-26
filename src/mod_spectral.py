@@ -47,7 +47,7 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
         list_autocorrelation_study = []
         list_autocorrelation_study_zero_crossing = []
         list_autocorrelation_distance = []
-        list_cross_correlation = []
+        # list_cross_correlation = []
 
     for ilat in grid_lat:
 
@@ -160,7 +160,7 @@ def spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                     else:
                         autocorrelation_zero_crossing = 0.
 
-                    #print cross_correlation, cross_correlation.size, selected_sla_study_segments.size
+                    # print cross_correlation, cross_correlation.size, selected_sla_study_segments.size
 
                     list_mean_ps_sla_study.append(ps_sla_study)
                     list_mean_ps_diff_sla_study_sla_ref.append(ps_diff_sla_study_sla_ref)
@@ -279,9 +279,9 @@ def spectral_computation_tide_gauge(sla_ref_segments, delta_t, npt, sla_study_se
             sla_study_segments,
             sla_ref_segments, fs=1.0 / delta_t, nperseg=npt, noverlap=0)
 
-        #plt.plot(sla_study_segments, color='r')
-        #plt.plot(sla_ref_segments, color='b')
-        #plt.show()
+        # plt.plot(sla_study_segments, color='r')
+        # plt.plot(sla_ref_segments, color='b')
+        # plt.show()
         # Effective resolution
         effective_resolution = compute_resolution(coherence, wavenumber)
 

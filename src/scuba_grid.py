@@ -2,6 +2,8 @@ from netCDF4 import date2num
 from sys import argv, exit
 from os import path
 import datetime
+import scipy.signal
+import matplotlib.pylab as plt
 
 from mod_io import *
 from mod_constant import *
@@ -97,6 +99,35 @@ if flag_reference_only:
 
     print("end segment computation", str(datetime.datetime.now()))
 
+    # Compute globally averaged zonal spectrum
+    # Power spectrum reference field
+    global_wavenumber_x, global_ps_sla_ref_x = scipy.signal.welch(np.asarray(computed_sla_ref_segment_x).flatten(),
+                                                                  fs=1.0 / delta_x,
+                                                                  nperseg=npt_x,
+                                                                  scaling='spectrum',
+                                                                  noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber_x, global_psd_sla_ref_x = scipy.signal.welch(np.asarray(computed_sla_ref_segment_x).flatten(),
+                                                                   fs=1.0 / delta_x,
+                                                                   nperseg=npt_x,
+                                                                   scaling='density',
+                                                                   noverlap=0)
+
+    # Compute globally averaged meridional spectrum
+    # Power spectrum reference field
+    global_wavenumber_y, global_ps_sla_ref_y = scipy.signal.welch(np.asarray(computed_sla_ref_segment_y).flatten(),
+                                                                  fs=1.0 / delta_y,
+                                                                  nperseg=npt_y,
+                                                                  scaling='spectrum',
+                                                                  noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber_y, global_psd_sla_ref_y = scipy.signal.welch(np.asarray(computed_sla_ref_segment_y).flatten(),
+                                                                   fs=1.0 / delta_y,
+                                                                   nperseg=npt_y,
+                                                                   scaling='density',
+                                                                   noverlap=0)
     # compute zonal spectrum on grid
     print("start gridding x", str(datetime.datetime.now()))
 
@@ -110,7 +141,6 @@ if flag_reference_only:
                              delta_lon_in, npt_x, equal_area, None)
 
     print("end gridding x", str(datetime.datetime.now()))
-
     # Write netCDF output
     print("start writing x", str(datetime.datetime.now()))
 
@@ -120,6 +150,11 @@ if flag_reference_only:
                         output_mean_PS_sla, output_mean_PSD_sla,
                         output_autocorrelation_distance,
                         output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing,
+                        global_wavenumber_x,
+                        global_psd_sla_ref_x,
+                        global_ps_sla_ref_x,
+                        output_global_mean_psd_sla_study=None,
+                        output_global_mean_ps_sla_study=None,
                         output_mean_ps_sla_study=None, output_mean_psd_sla_study=None,
                         output_mean_ps_diff_sla_ref_sla_study=None, output_mean_psd_diff_sla_ref_sla_study=None,
                         output_mean_coherence=None, output_effective_resolution=None, output_useful_resolution=None)
@@ -149,6 +184,11 @@ if flag_reference_only:
                         output_mean_PS_sla, output_mean_PSD_sla,
                         output_autocorrelation_distance,
                         output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing,
+                        global_wavenumber_y,
+                        global_psd_sla_ref_y,
+                        global_ps_sla_ref_y,
+                        output_global_mean_psd_sla_study=None,
+                        output_global_mean_ps_sla_study=None,
                         output_mean_ps_sla_study=None, output_mean_psd_sla_study=None,
                         output_mean_ps_diff_sla_ref_sla_study=None, output_mean_psd_diff_sla_ref_sla_study=None,
                         output_mean_coherence=None, output_effective_resolution=None, output_useful_resolution=None)
@@ -182,6 +222,66 @@ else:
 
     print("end segment computation", str(datetime.datetime.now()))
 
+    # Compute globally averaged zonal spectrum
+    # Power spectrum reference field
+    global_wavenumber_x, global_ps_sla_ref_x = scipy.signal.welch(np.asarray(computed_sla_ref_segment_x).flatten(),
+                                                                  fs=1.0 / delta_x,
+                                                                  nperseg=npt_x,
+                                                                  scaling='spectrum',
+                                                                  noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber_x, global_psd_sla_ref_x = scipy.signal.welch(np.asarray(computed_sla_ref_segment_x).flatten(),
+                                                                   fs=1.0 / delta_x,
+                                                                   nperseg=npt_x,
+                                                                   scaling='density',
+                                                                   noverlap=0)
+
+    # Compute globally averaged meridional spectrum
+    # Power spectrum reference field
+    global_wavenumber_y, global_ps_sla_ref_y = scipy.signal.welch(np.asarray(computed_sla_ref_segment_y).flatten(),
+                                                                  fs=1.0 / delta_y,
+                                                                  nperseg=npt_y,
+                                                                  scaling='spectrum',
+                                                                  noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber_y, global_psd_sla_ref_y = scipy.signal.welch(np.asarray(computed_sla_ref_segment_y).flatten(),
+                                                                   fs=1.0 / delta_y,
+                                                                   nperseg=npt_y,
+                                                                   scaling='density',
+                                                                   noverlap=0)
+
+    # Compute globally averaged zonal spectrum
+    # Power spectrum reference field
+    global_wavenumber_x, global_ps_sla_study_x = scipy.signal.welch(np.asarray(computed_sla_study_segment_x).flatten(),
+                                                                    fs=1.0 / delta_x,
+                                                                    nperseg=npt_x,
+                                                                    scaling='spectrum',
+                                                                    noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber_x, global_psd_sla_study_x = scipy.signal.welch(np.asarray(computed_sla_study_segment_x).flatten(),
+                                                                   fs=1.0 / delta_x,
+                                                                   nperseg=npt_x,
+                                                                   scaling='density',
+                                                                   noverlap=0)
+
+    # Compute globally averaged meridional spectrum
+    # Power spectrum reference field
+    global_wavenumber_y, global_ps_sla_study_y = scipy.signal.welch(np.asarray(computed_sla_study_segment_y).flatten(),
+                                                                    fs=1.0 / delta_y,
+                                                                    nperseg=npt_y,
+                                                                    scaling='spectrum',
+                                                                    noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber_y, global_psd_sla_study_y = scipy.signal.welch(np.asarray(computed_sla_study_segment_y).flatten(),
+                                                                     fs=1.0 / delta_y,
+                                                                     nperseg=npt_y,
+                                                                     scaling='density',
+                                                                     noverlap=0)
+
     # compute zonal spectrum on grid
     print("start gridding x", str(datetime.datetime.now()))
 
@@ -208,6 +308,11 @@ else:
                         output_mean_PS_sla, output_mean_PSD_sla,
                         output_autocorrelation_distance,
                         output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing,
+                        global_wavenumber_x,
+                        global_psd_sla_ref_x,
+                        global_ps_sla_ref_x,
+                        output_global_mean_psd_sla_study=global_psd_sla_study_x,
+                        output_global_mean_ps_sla_study=global_ps_sla_study_x,
                         output_mean_ps_sla_study=output_mean_PS_sla2, output_mean_psd_sla_study=output_mean_PSD_sla2,
                         output_autocorrelation_study=output_autocorrelation_study,
                         output_autocorrelation_study_zero_crossing=output_autocorrelation_study_zero_crossing,
@@ -246,6 +351,11 @@ else:
                         output_mean_PS_sla, output_mean_PSD_sla,
                         output_autocorrelation_distance,
                         output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing,
+                        global_wavenumber_y,
+                        global_psd_sla_ref_y,
+                        global_ps_sla_ref_y,
+                        output_global_mean_psd_sla_study=global_psd_sla_study_y,
+                        output_global_mean_ps_sla_study=global_ps_sla_study_y,
                         output_mean_ps_sla_study=output_mean_PS_sla2, output_mean_psd_sla_study=output_mean_PSD_sla2,
                         output_autocorrelation_study=output_autocorrelation_study,
                         output_autocorrelation_study_zero_crossing=output_autocorrelation_study_zero_crossing,

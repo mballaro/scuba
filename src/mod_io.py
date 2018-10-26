@@ -360,6 +360,11 @@ def write_netcdf_output(output_netcdf_file,
                         output_autocorrelation_distance,
                         output_autocorrelation_ref,
                         output_autocorrelation_ref_zero_crossing,
+                        output_global_mean_frequency,
+                        output_global_mean_psd_sla_ref,
+                        output_global_mean_ps_sla_ref,
+                        output_global_mean_psd_sla_study=None,
+                        output_global_mean_ps_sla_study=None,
                         output_mean_ps_sla_study=None, output_mean_psd_sla_study=None,
                         output_autocorrelation_study=None,
                         output_autocorrelation_study_zero_crossing=None,
@@ -466,6 +471,35 @@ def write_netcdf_output(output_netcdf_file,
     zero_crossing_ref.units = freq_unit
     zero_crossing_ref.long_name = "zero crossing autocorrelation function reference field"
     zero_crossing_ref[:, :] = array9
+
+
+    nc_out.createDimension('fglob', output_global_mean_frequency.size)
+    global_frequence_out = nc_out.createVariable('global_mean_freq', 'f8', 'fglob')
+    global_frequence_out.units = "1/%s" % freq_unit
+    global_frequence_out[:] = np.ma.masked_invalid(
+            np.ma.masked_where(output_global_mean_frequency == 0, output_global_mean_frequency))
+    global_frequence_out.long_name = "global frequency vector"
+
+    global_ps_ref_out = nc_out.createVariable('global_mean_ps_ref', 'f8', 'fglob')
+    global_ps_ref_out.units = "m2"
+    global_ps_ref_out[:] = np.ma.masked_invalid(output_global_mean_ps_sla_ref)
+    global_ps_ref_out.long_name = "global power spectrum reference field"
+
+    global_psd_ref_out = nc_out.createVariable('global_mean_psd_ref', 'f8', 'fglob')
+    global_psd_ref_out.units = 'm2/%s' % freq_unit
+    global_psd_ref_out[:] = np.ma.masked_invalid(output_global_mean_psd_sla_ref)
+    global_psd_ref_out.long_name = "global power spectrum density reference field"
+
+    if output_global_mean_psd_sla_study is not None:
+        global_ps_study_out = nc_out.createVariable('global_mean_ps_study', 'f8', 'fglob')
+        global_ps_study_out.units = "m2"
+        global_ps_study_out[:] = np.ma.masked_invalid(output_global_mean_ps_sla_study)
+        global_ps_study_out.long_name = "global power spectrum study field"
+
+        global_psd_study_out = nc_out.createVariable('global_mean_psd_study', 'f8', 'fglob')
+        global_psd_study_out.units = 'm2/%s' % freq_unit
+        global_psd_study_out[:] = np.ma.masked_invalid(output_global_mean_psd_sla_study)
+        global_psd_study_out.long_name = "global power spectrum density study field"
 
     if output_mean_ps_sla_study is not None:
         array10 = np.swapaxes(

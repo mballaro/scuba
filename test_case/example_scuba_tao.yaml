@@ -2,7 +2,9 @@
 inputs:
    # input_file_directory: folder containing SLA from tide gauge and CMEMS maps (one file per TG)
    input_tao_file_directory: ./inputs/tao/
+   ref_field_scale_factor: 1
    input_map_file: /data/MSA_ETU/mballarotta/ETUDE_EFFECTIVE_RESOLUTION/ETUDE_TEMPORAL_EFFECTIVE_RESOLUTION_TAO/prepration_data/TAO_NOAA/sla_1993-2017_DUACS-DT2014_light.nc
+   study_field_scale_factor: 1
      
 properties:
     # corr_coef: minimum correlation criterion threshold between SLA map and SLA TG to perform analysis

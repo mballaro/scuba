@@ -31,10 +31,13 @@ if len(argv) != 2:
 # Load analysis information from YAML file
 YAML = load(open(str(argv[1])))
 input_file_reference = YAML['inputs']['input_file_reference']
+ref_field_scale_factor = YAML['inputs']['ref_field_scale_factor']
 mission = YAML['inputs']['mission']
 
 input_map_directory = YAML['inputs']['input_map_directory']
 map_file_pattern = YAML['inputs']['map_file_pattern']
+study_field_scale_factor = YAML['inputs']['study_field_scale_factor']
+
 
 study_lon_min = YAML['properties']['study_area']['llcrnrlon']
 study_lon_max = YAML['properties']['study_area']['urcrnrlon']
@@ -75,6 +78,8 @@ slap, timep, lonp, latp = read_along_track(input_file_reference, study_time_min,
                                            flag_edit_spatiotemporal_incoherence,
                                            flag_edit_coastal, file_coastal_distance, coastal_criteria, flag_roll)
 
+slap = slap * ref_field_scale_factor
+
 if flag_reference_only:
 
     # Prepare segment
@@ -84,6 +89,19 @@ if flag_reference_only:
         compute_segment_alongtrack(slap, lonp, latp, timep, mission, mission_management, lenght_scale)
 
     print("end segment computation", str(datetime.datetime.now()))
+
+    global_wavenumber, global_ps_sla_ref = scipy.signal.welch(np.asarray(computed_sla_segment).flatten(),
+                                                              fs=1.0 / delta_x,
+                                                              nperseg=npt,
+                                                              scaling='spectrum',
+                                                              noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber, global_psd_sla_ref = scipy.signal.welch(np.asarray(computed_sla_segment).flatten(),
+                                                               fs=1.0 / delta_x,
+                                                               nperseg=npt,
+                                                               scaling='density',
+                                                               noverlap=0)
 
     # compute spectrum on grid
     print("start gridding", str(datetime.datetime.now()))
@@ -107,6 +125,11 @@ if flag_reference_only:
                         output_mean_PS_sla, output_mean_PSD_sla,
                         output_autocorrelation_distance,
                         output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing,
+                        global_wavenumber,
+                        global_psd_sla_ref,
+                        global_ps_sla_ref,
+                        output_global_mean_psd_sla_study=None,
+                        output_global_mean_ps_sla_study=None,
                         output_mean_ps_sla_study=None, output_mean_psd_sla_study=None,
                         output_mean_ps_diff_sla_ref_sla_study=None, output_mean_psd_diff_sla_ref_sla_study=None,
                         output_mean_coherence=None, output_effective_resolution=None, output_useful_resolution=None)
@@ -121,6 +144,7 @@ else:
     MSLA_interpolated = interpolate_msla_on_alongtrack(timep, latp, lonp,
                                                        input_map_directory, map_file_pattern, time_ensemble, flag_roll)
 
+    MSLA_interpolated = MSLA_interpolated * study_field_scale_factor
     print("end MSLA interpolation", str(datetime.datetime.now()))
 
     # Remove bad values that appear on MSLA after interpolation
@@ -147,6 +171,32 @@ else:
 
     print("end segment computation", str(datetime.datetime.now()))
 
+    global_wavenumber, global_ps_sla_ref = scipy.signal.welch(np.asarray(computed_sla_segment).flatten(),
+                                                              fs=1.0 / delta_x,
+                                                              nperseg=npt,
+                                                              scaling='spectrum',
+                                                              noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber, global_psd_sla_ref = scipy.signal.welch(np.asarray(computed_sla_segment).flatten(),
+                                                               fs=1.0 / delta_x,
+                                                               nperseg=npt,
+                                                               scaling='density',
+                                                               noverlap=0)
+
+    global_wavenumber, global_ps_sla_study = scipy.signal.welch(np.asarray(computed_msla_segment).flatten(),
+                                                                fs=1.0 / delta_x,
+                                                                nperseg=npt,
+                                                                scaling='spectrum',
+                                                                noverlap=0)
+
+    # Power spectrum density reference field
+    global_wavenumber, global_psd_sla_study = scipy.signal.welch(np.asarray(computed_msla_segment).flatten(),
+                                                                 fs=1.0 / delta_x,
+                                                                 nperseg=npt,
+                                                                 scaling='density',
+                                                                 noverlap=0)
+
     # compute spectrum on grid
     print("start gridding", str(datetime.datetime.now()))
     output_effective_lon, output_effective_lat, output_mean_frequency, \
@@ -155,14 +205,13 @@ else:
     output_mean_ps_sla_study, output_mean_ps_diff_sla_study_sla_ref, \
     output_mean_psd_sla_study, output_mean_psd_diff_sla_study_sla_ref, \
     output_mean_coherence, output_effective_resolution, output_useful_resolution, \
-    output_autocorrelation_study, output_autocorrelation_study_zero_crossing, output_cross_correlation = \
+    output_autocorrelation_study, output_autocorrelation_study_zero_crossing = \
         spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
                              np.asarray(computed_sla_segment),
                              np.asarray(computed_lon_segment),
                              np.asarray(computed_lat_segment),
                              delta_x, npt, equal_area, flag_greenwich_start,
-                             sla_study_segments=np.asarray(computed_msla_segment),
-                             cross_correlation_segments=np.asarray(computed_crosscorrelation_segment))
+                             sla_study_segments=np.asarray(computed_msla_segment))
 
     print("end gridding", str(datetime.datetime.now()))
 
@@ -175,6 +224,11 @@ else:
                         output_mean_PS_sla, output_mean_PSD_sla,
                         output_autocorrelation_distance,
                         output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing,
+                        global_wavenumber,
+                        global_psd_sla_ref,
+                        global_ps_sla_ref,
+                        output_global_mean_psd_sla_study=global_psd_sla_study,
+                        output_global_mean_ps_sla_study=global_ps_sla_study,
                         output_mean_ps_sla_study=output_mean_ps_sla_study,
                         output_mean_psd_sla_study=output_mean_psd_sla_study,
                         output_autocorrelation_study=output_autocorrelation_study,
@@ -184,6 +238,6 @@ else:
                         output_mean_coherence=output_mean_coherence,
                         output_effective_resolution=output_effective_resolution,
                         output_useful_resolution=output_useful_resolution,
-                        output_cross_correlation=output_cross_correlation)
+                        output_cross_correlation=None)
 
     print("end writing", str(datetime.datetime.now()))

@@ -300,8 +300,8 @@ def compute_segment_alongtrack(sla, lon_along_track, lat_along_track, time_along
                     list_sla_segment.append(sla_segment)
                     list_lon_segment.append(mean_lon_sub_segment)
                     list_lat_segment.append(mean_lat_sub_segment)
-                    list_crosscorrelation_segment.append(cross_correlation)
                     if msla is not None:
+                        list_crosscorrelation_segment.append(cross_correlation)
                         list_msla_segment.append(msla_segment)
 
     if msla is not None:

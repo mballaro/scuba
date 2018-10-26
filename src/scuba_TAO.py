@@ -32,7 +32,10 @@ if len(argv) != 2:
 # Load analysis information from YAML file
 YAML = load(open(str(argv[1])))
 input_tao_file_directory = YAML['inputs']['input_tao_file_directory']
+ref_field_scale_factor = YAML['inputs']['ref_field_scale_factor']
 input_map_file = YAML['inputs']['input_map_file']
+study_field_scale_factor = YAML['inputs']['study_field_scale_factor']
+
 coef_corr_criterion = YAML['properties']['corr_coef']
 lenght_scale = YAML['properties']['spectral_parameters']['lenght_scale']
 delta_t = YAML['properties']['spectral_parameters']['delta_t']
@@ -67,6 +70,7 @@ for root, dirnames, filenames in walk(input_tao_file_directory):
         print("Start reading TAO file : %s" % filename)
         ssh_tao, time_tao, lat_tao, lon_tao = read_tao(path.join(root, filename))
         print("End reading TAO file")
+        ssh_tao = ssh_tao * ref_field_scale_factor
 
         # Cleaning
         ssh_tao = np.ma.masked_invalid(np.ma.masked_where(np.abs(ssh_tao) > 1.E10, ssh_tao))
@@ -86,6 +90,7 @@ for root, dirnames, filenames in walk(input_tao_file_directory):
 
         print("Start reading SSH map timeserie")
         ssh_map = nc.variables['adt'][index_min_time:index_max_time, index_lat, index_lon]
+        ssh_map = ssh_map * study_field_scale_factor
         print("End reading SSH map timeserie")
 
         #ssh_map = np.ma.masked_where(ssh_tao.filled(-999) == -999, ssh_map)

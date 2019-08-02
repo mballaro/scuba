@@ -1,19 +1,12 @@
-from netCDF4 import Dataset, date2num
+
 import numpy as np
 import matplotlib.pylab as plt
 import datetime
-import glob
 from sys import argv, exit
 from os import path
-import re
-from mpl_toolkits.basemap import Basemap
-import datetime
-import math
-from scipy.fftpack import fft
-import scipy.signal
-import scipy.interpolate
-from math import sqrt, cos, sin, asin, radians
-from yaml import load
+from yaml import load, Loader
+import logging
+import argparse
 
 from mod_io import *
 from mod_constant import *
@@ -22,222 +15,157 @@ from mod_segmentation import *
 from mod_spectral import *
 from mod_interpolation import *
 
-if len(argv) != 2:
-    print(' \n')
-    print('USAGE   : %s <file.YAML> \n' % path.basename(argv[0]))
-    print('Purpose : Spectral and spectral coherence computation tools for altimeter data \n')
-    exit(0)
 
-# Load analysis information from YAML file
-YAML = load(open(str(argv[1])))
-input_file_reference = YAML['inputs']['input_file_reference']
-ref_field_scale_factor = YAML['inputs']['ref_field_scale_factor']
-mission = YAML['inputs']['mission']
+parser = argparse.ArgumentParser(description='Spectral computation tools for altimeter data')
+parser.add_argument("config_file", help="configuration file for alongtrack analysis (.yaml format)")
+parser.add_argument('-v', '--verbose', dest='verbose', default='error',
+                    help='Verbosity : critical, error, warning, info, debug')
+args = parser.parse_args()
 
-input_map_directory = YAML['inputs']['input_map_directory']
-map_file_pattern = YAML['inputs']['map_file_pattern']
-study_field_scale_factor = YAML['inputs']['study_field_scale_factor']
+config_file = args.config_file
 
+FORMAT_LOG = "%(levelname)-10s %(asctime)s %(module)s.%(funcName)s : %(message)s"
+logging.basicConfig(format=FORMAT_LOG, level=logging.ERROR, datefmt="%H:%M:%S")
+logger = logging.getLogger()
+logger.setLevel(getattr(logging, args.verbose.upper()))
 
-study_lon_min = YAML['properties']['study_area']['llcrnrlon']
-study_lon_max = YAML['properties']['study_area']['urcrnrlon']
-study_lat_min = YAML['properties']['study_area']['llcrnrlat']
-study_lat_max = YAML['properties']['study_area']['urcrnrlat']
-
-flag_roll = YAML['properties']['study_area']['flag_roll']
-flag_ewp = YAML['properties']['study_area']['flag_ewp']
-flag_greenwich_start = YAML['properties']['study_area']['flag_greenwich_start']
-
-start = datetime.datetime.strptime(str(YAML['properties']['time_window']['YYYYMMDD_min']), '%Y%m%d')
-end = datetime.datetime.strptime(str(YAML['properties']['time_window']['YYYYMMDD_max']), '%Y%m%d')
-study_time_min = int(date2num(start, units="days since 1950-01-01", calendar='standard'))
-study_time_max = int(date2num(end, units="days since 1950-01-01", calendar='standard'))
-time_ensemble = np.arange(study_time_min, study_time_max + 1, 1)
-
-mission_management = YAML['properties']['mission_management']
-
-flag_edit_coastal = YAML['properties']['flag_edit_coastal']
-file_coastal_distance = YAML['properties']['file_coastal_distance']
-coastal_criteria = YAML['properties']['coastal_criteria']
-
-flag_edit_spatiotemporal_incoherence = YAML['properties']['flag_edit_spatiotemporal_incoherence']
+YAML = load(open(str(config_file)), Loader=Loader)
 
 flag_reference_only = YAML['properties']['spectral_parameters']['flag_reference_only']
-lenght_scale = YAML['properties']['spectral_parameters']['lenght_scale']
-delta_lat = YAML['properties']['spectral_parameters']['delta_lat']
-delta_lon = YAML['properties']['spectral_parameters']['delta_lon']
-equal_area = YAML['properties']['spectral_parameters']['equal_area']
 
-grid_lat = np.arange(study_lat_min, study_lat_max, YAML['outputs']['output_lat_resolution'])
-grid_lon = np.arange(study_lon_min, study_lon_max, YAML['outputs']['output_lon_resolution'])
+# Read reference input
+logging.info("start reading alongtrack")
+if YAML['inputs']['ref_field_type_CLS']:
+    ssh_alongtrack, time_alongtrack, lon_alongtrack, lat_alongtrack = read_along_track_cls(YAML)
+else:
+    ssh_alongtrack, time_alongtrack, lon_alongtrack, lat_alongtrack = read_along_track(YAML)
 
-nc_file = YAML['outputs']['output_filename']
-
-slap, timep, lonp, latp = read_along_track(input_file_reference, study_time_min, study_time_max,
-                                           study_lon_min, study_lon_max, study_lat_min, study_lat_max,
-                                           flag_edit_spatiotemporal_incoherence,
-                                           flag_edit_coastal, file_coastal_distance, coastal_criteria, flag_roll)
-
-slap = slap * ref_field_scale_factor
+logging.info("end reading alongtrack")
 
 if flag_reference_only:
 
-    # Prepare segment
-    print("start segment computation", str(datetime.datetime.now()))
+    # compute segment
+    logging.info("start segment computation")
 
-    computed_sla_segment, computed_lon_segment, computed_lat_segment, delta_x, npt = \
-        compute_segment_alongtrack(slap, lonp, latp, timep, mission, mission_management, lenght_scale)
+    ref_segment, lon_segment, lat_segment, delta_x, npt = compute_segment_alongtrack(ssh_alongtrack,
+                                                                                     lon_alongtrack,
+                                                                                     lat_alongtrack,
+                                                                                     time_alongtrack,
+                                                                                     YAML)
+    # write segment
+    write_segment(YAML, lat_segment, lon_segment, ref_segment, delta_x, 'km', npt)
 
-    print("end segment computation", str(datetime.datetime.now()))
+    logging.info("end segment computation")
 
-    global_wavenumber, global_ps_sla_ref = scipy.signal.welch(np.asarray(computed_sla_segment).flatten(),
-                                                              fs=1.0 / delta_x,
-                                                              nperseg=npt,
-                                                              scaling='spectrum',
-                                                              noverlap=0)
-
-    # Power spectrum density reference field
-    global_wavenumber, global_psd_sla_ref = scipy.signal.welch(np.asarray(computed_sla_segment).flatten(),
-                                                               fs=1.0 / delta_x,
-                                                               nperseg=npt,
-                                                               scaling='density',
-                                                               noverlap=0)
+    # compute global power spectrum density reference field
+    global_wavenumber, global_psd_ref = scipy.signal.welch(np.asarray(ref_segment).flatten(),
+                                                           fs=1.0 / delta_x,
+                                                           nperseg=npt,
+                                                           scaling='density',
+                                                           noverlap=0)
 
     # compute spectrum on grid
-    print("start gridding", str(datetime.datetime.now()))
-    output_effective_lon, output_effective_lat, output_mean_frequency, \
-    output_mean_PSD_sla, output_mean_PS_sla, output_nb_segment, \
-    output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing, output_autocorrelation_distance = \
-        spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
-                         np.asarray(computed_sla_segment),
-                         np.asarray(computed_lon_segment),
-                         np.asarray(computed_lat_segment),
-                         delta_x, npt, equal_area, flag_greenwich_start, None)
+    logging.info("start gridding")
 
-    print("end gridding", str(datetime.datetime.now()))
+    wavenumber, psd_ref, nb_segment = spectral_computation(YAML,
+                                                           np.asarray(ref_segment),
+                                                           np.asarray(lon_segment),
+                                                           np.asarray(lat_segment),
+                                                           delta_x,
+                                                           npt)
 
-    # Write netCDF output
-    print("start writing", str(datetime.datetime.now()))
+    logging.info("end gridding")
 
-    write_netcdf_output(nc_file,
-                        grid_lon, grid_lat, output_effective_lon, output_effective_lat,
-                        output_mean_frequency, output_nb_segment, 'km',
-                        output_mean_PS_sla, output_mean_PSD_sla,
-                        output_autocorrelation_distance,
-                        output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing,
-                        global_wavenumber,
-                        global_psd_sla_ref,
-                        global_ps_sla_ref,
-                        output_global_mean_psd_sla_study=None,
-                        output_global_mean_ps_sla_study=None,
-                        output_mean_ps_sla_study=None, output_mean_psd_sla_study=None,
-                        output_mean_ps_diff_sla_ref_sla_study=None, output_mean_psd_diff_sla_ref_sla_study=None,
-                        output_mean_coherence=None, output_effective_resolution=None, output_useful_resolution=None)
+    # write netCDF output
+    logging.info("start writing")
 
-    print("end writing", str(datetime.datetime.now()))
+    write_netcdf_output(YAML, wavenumber, nb_segment, 'km', psd_ref, global_psd_ref)
+
+    logging.info("end writing")
 
 else:
 
     # Interpolate map of SLA onto along-track
-    print("start MSLA interpolation", str(datetime.datetime.now()))
+    logging.info("start map interpolation")
 
-    MSLA_interpolated = interpolate_msla_on_alongtrack(timep, latp, lonp,
-                                                       input_map_directory, map_file_pattern, time_ensemble, flag_roll)
+    ssh_map_interpolated = interpolate_msla_on_alongtrack(time_alongtrack, lat_alongtrack, lon_alongtrack, YAML)
 
-    MSLA_interpolated = MSLA_interpolated * study_field_scale_factor
-    print("end MSLA interpolation", str(datetime.datetime.now()))
+    logging.info("end map interpolation")
 
     # Remove bad values that appear on MSLA after interpolation
-    slap = np.ma.compressed(np.ma.masked_where(np.abs(MSLA_interpolated) > 10., slap))
-    lonp = np.ma.compressed(np.ma.masked_where(np.abs(MSLA_interpolated) > 10., lonp))
-    latp = np.ma.compressed(np.ma.masked_where(np.abs(MSLA_interpolated) > 10., latp))
-    timep = np.ma.compressed(np.ma.masked_where(np.abs(MSLA_interpolated) > 10., timep))
-    MSLA_interpolated = np.ma.compressed(np.ma.masked_where(np.abs(MSLA_interpolated) > 10., MSLA_interpolated))
+    ssh_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., ssh_alongtrack))
+    lon_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., lon_alongtrack))
+    lat_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., lat_alongtrack))
+    time_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., time_alongtrack))
+    ssh_map_interpolated = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10.,
+                                                               ssh_map_interpolated))
 
-    # plt.plot(timep, slap, color='k', label="Independent along-track", lw=2)
-    # plt.plot(timep, MSLA_interpolated, color='r', label="MSLA interpolated", lw=2)
-    # plt.ylabel('SLA (m)')
-    # plt.xlabel('Timeline (Julian days since 1950-01-01)')
-    # plt.legend(loc='best')
-    # plt.show()
+    debug = False
+    if debug:
+        plt.scatter(time_alongtrack, ssh_alongtrack, color='k', label="Independent along-track", lw=2)
+        plt.plot(time_alongtrack, ssh_map_interpolated, color='r', label="MSLA interpolated", lw=2)
+        # plt.plot(time_alongtrack_c, ssh_map_interpolated_c, color='c', label="MSLA cleaned interpolated", lw=2)
+        plt.ylabel('SLA (m)')
+        plt.ylim(-2, 2)
+        plt.xlabel('Timeline (Julian days since 1950-01-01)')
+        plt.legend(loc='best')
+        plt.show()
 
     # Prepare segment
-    print("start segment computation", str(datetime.datetime.now()))
+    logging.info("start segment computation")
 
-    computed_sla_segment, computed_lon_segment, computed_lat_segment, delta_x, npt, computed_msla_segment, \
-    computed_crosscorrelation_segment = \
-        compute_segment_alongtrack(slap, lonp, latp, timep, mission, mission_management,
-                                   lenght_scale, MSLA_interpolated)
+    ref_segment, lon_segment, lat_segment, delta_x, npt, study_segment = \
+        compute_segment_alongtrack(ssh_alongtrack,
+                                   lon_alongtrack,
+                                   lat_alongtrack,
+                                   time_alongtrack,
+                                   YAML,
+                                   ssh_map_interpolated)
 
-    print("end segment computation", str(datetime.datetime.now()))
+    write_segment(YAML, lat_segment, lon_segment, ref_segment, delta_x, 'km', npt, segment_study=study_segment)
 
-    global_wavenumber, global_ps_sla_ref = scipy.signal.welch(np.asarray(computed_sla_segment).flatten(),
-                                                              fs=1.0 / delta_x,
-                                                              nperseg=npt,
-                                                              scaling='spectrum',
-                                                              noverlap=0)
-
-    # Power spectrum density reference field
-    global_wavenumber, global_psd_sla_ref = scipy.signal.welch(np.asarray(computed_sla_segment).flatten(),
-                                                               fs=1.0 / delta_x,
-                                                               nperseg=npt,
-                                                               scaling='density',
-                                                               noverlap=0)
-
-    global_wavenumber, global_ps_sla_study = scipy.signal.welch(np.asarray(computed_msla_segment).flatten(),
-                                                                fs=1.0 / delta_x,
-                                                                nperseg=npt,
-                                                                scaling='spectrum',
-                                                                noverlap=0)
+    logging.info("end segment computation")
 
     # Power spectrum density reference field
-    global_wavenumber, global_psd_sla_study = scipy.signal.welch(np.asarray(computed_msla_segment).flatten(),
-                                                                 fs=1.0 / delta_x,
-                                                                 nperseg=npt,
-                                                                 scaling='density',
-                                                                 noverlap=0)
+    global_wavenumber, global_psd_ref = scipy.signal.welch(np.asarray(ref_segment).flatten(),
+                                                           fs=1.0 / delta_x,
+                                                           nperseg=npt,
+                                                           scaling='density',
+                                                           noverlap=0)
+
+    # Power spectrum density study field
+    _, global_psd_study = scipy.signal.welch(np.asarray(study_segment).flatten(),
+                                             fs=1.0 / delta_x,
+                                             nperseg=npt,
+                                             scaling='density',
+                                             noverlap=0)
 
     # compute spectrum on grid
-    print("start gridding", str(datetime.datetime.now()))
-    output_effective_lon, output_effective_lat, output_mean_frequency, \
-    output_mean_PSD_sla, output_mean_PS_sla, output_nb_segment, \
-    output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing, output_autocorrelation_distance, \
-    output_mean_ps_sla_study, output_mean_ps_diff_sla_study_sla_ref, \
-    output_mean_psd_sla_study, output_mean_psd_diff_sla_study_sla_ref, \
-    output_mean_coherence, output_effective_resolution, output_useful_resolution, \
-    output_autocorrelation_study, output_autocorrelation_study_zero_crossing = \
-        spectral_computation(grid_lon, grid_lat, delta_lon, delta_lat,
-                             np.asarray(computed_sla_segment),
-                             np.asarray(computed_lon_segment),
-                             np.asarray(computed_lat_segment),
-                             delta_x, npt, equal_area, flag_greenwich_start,
-                             sla_study_segments=np.asarray(computed_msla_segment))
+    logging.info("start gridding")
+    wavenumber, psd_ref, nb_segment, psd_study, psd_diff_study_ref, coherence, cross_spectrum = \
+        spectral_computation(YAML,
+                             np.asarray(ref_segment),
+                             np.asarray(lon_segment),
+                             np.asarray(lat_segment),
+                             delta_x,
+                             npt,
+                             np.asarray(study_segment))
 
-    print("end gridding", str(datetime.datetime.now()))
+    logging.info("end gridding")
 
     # Write netCDF output
-    print("start writing", str(datetime.datetime.now()))
+    logging.info("start writing")
 
-    write_netcdf_output(nc_file,
-                        grid_lon, grid_lat, output_effective_lon, output_effective_lat,
-                        output_mean_frequency, output_nb_segment, 'km',
-                        output_mean_PS_sla, output_mean_PSD_sla,
-                        output_autocorrelation_distance,
-                        output_autocorrelation_ref, output_autocorrelation_ref_zero_crossing,
-                        global_wavenumber,
-                        global_psd_sla_ref,
-                        global_ps_sla_ref,
-                        output_global_mean_psd_sla_study=global_psd_sla_study,
-                        output_global_mean_ps_sla_study=global_ps_sla_study,
-                        output_mean_ps_sla_study=output_mean_ps_sla_study,
-                        output_mean_psd_sla_study=output_mean_psd_sla_study,
-                        output_autocorrelation_study=output_autocorrelation_study,
-                        output_autocorrelation_study_zero_crossing=output_autocorrelation_study_zero_crossing,
-                        output_mean_ps_diff_sla_ref_sla_study=output_mean_ps_diff_sla_study_sla_ref,
-                        output_mean_psd_diff_sla_ref_sla_study=output_mean_psd_diff_sla_study_sla_ref,
-                        output_mean_coherence=output_mean_coherence,
-                        output_effective_resolution=output_effective_resolution,
-                        output_useful_resolution=output_useful_resolution,
-                        output_cross_correlation=None)
+    write_netcdf_output(YAML,
+                        wavenumber,
+                        nb_segment,
+                        'km',
+                        psd_ref,
+                        global_psd_ref,
+                        global_psd_study=global_psd_study,
+                        psd_study=psd_study,
+                        psd_diff_ref_study=psd_diff_study_ref,
+                        coherence=coherence,
+                        cross_spectrum=cross_spectrum)
 
-    print("end writing", str(datetime.datetime.now()))
+    logging.info("end writing")

@@ -4,15 +4,17 @@ inputs:
    # input_map_directory: directory with netcDF file maps of SLA
    # map_file_pattern: file pattern for file selection: 
    # mission: mission acronym (ex: AL, H2, J2, C2 ....)
-   input_file_reference: ./inputs/mdt/MDT_CNES_CLS13.nc
-   ref_lon_name: lon
-   ref_lat_name: lat
-   ref_field_name: mdt
+   input_file_reference: ./inputs/maps/dt*.nc #./inputs/mdt/MDT_CNES_CLS13.nc
+   ref_field_lon_name: longitude
+   ref_field_lat_name: latitude
+   ref_field_time_name: time
+   ref_field_name: sla
    ref_field_scale_factor : 1
-   input_file_study: ./inputs/maps
-   study_lon_name: 
-   study_lat_name: 
-   study_field_name: 
+   input_file_study: ./inputs/maps/dt*.nc
+   study_field_lon_name: longitude
+   study_field_lat_name: latitude
+   study_field_time_name: time
+   study_field_name: sla
    study_field_scale_factor: 1
    
    
@@ -25,10 +27,10 @@ properties:
         # flag_roll: flag for shifting longitude array from [0:360] to [-180:180]. Useful for Med Sea products 
         # flag_ewp: flag east/west periodicity (True == activated)
         # flag_greenwich_start: True if longitude start at 0 
-        llcrnrlon: -180
-        urcrnrlon: 180
-        llcrnrlat: -90
-        urcrnrlat: 90
+        llcrnrlon: 330. # -180
+        urcrnrlon: 360. #180
+        llcrnrlat: 40
+        urcrnrlat: 60
         flag_roll: False
         flag_ewp: True
         flag_greenwich_start: False
@@ -55,11 +57,13 @@ properties:
         # delta_lat: lenght in degree lat for spectral averaging (ex: 10 := 10°)
         # delta_lon: lenght in degree lon for spectral averaging (ex: 10 := 10°)
         # equal_area: flag for setting equal_area global averaging (True/False). If true averaging based on lenght_scale
-        flag_reference_only: True 
+        flag_reference_only: False
         lenght_scale: 800.
+        segment_overlapping: 0.25
         delta_lat: 10.
         delta_lon: 10.
-        equal_area: False
+        delta_t: 1
+        direction: both
         
 outputs:
     # output_lon_resolution: longitude resolution output grid
@@ -68,6 +72,8 @@ outputs:
     # output_filename_y_direction: output filename meridional computation
     output_lon_resolution: 1.
     output_lat_resolution: 1.
+    output_segment_filename_x_direction: segment_x.nc
+    output_segment_filename_y_direction: segment_y.nc
     output_filename_x_direction: psd_x_direction.nc
     output_filename_y_direction: psd_y_direction.nc
 

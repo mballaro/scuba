@@ -1,5 +1,5 @@
 
-![SCUBA Logo](https://github.com/mballaro/scuba/blob/master/share/scuba_files/logo.png)
+![SCUBA Logo](./share/scuba_files/logo.png)
 
 SCUBA performs spectral analysis of along-track and gridded dataset, as well as spectral statistical comparison between two fields (e.g., along-track vs grid, grid vs grid).
 
@@ -12,7 +12,6 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
       * [Running test cases](#running-test-cases)
       * [Visualisation of the results](#visualisation-of-the-results)
    * [Authors and Contributors](#authors-and-contributors)
-<!--te-->
 
 
 # Structure of SCUBA
@@ -31,8 +30,8 @@ SCUBA performs spectral analysis of along-track and gridded dataset, as well as 
 # Usage and Background
 * `scuba_alongtrack.py` performs spectral analysis on along-track data or between along-track and gridded data
 * `scuba_grid.py` performs spectral analysis on gridded data or between two gridded data
-* `scuba_TG.py` performs spectral analysis on tide gauge and gridded data timeseries
-* `scuba_TAO.py` performs spectral analysis on TAO mooring and gridded data timeseries
+* `scuba_tide_gauge.py` performs spectral analysis on tide gauge and gridded data timeseries
+* `scuba_mooring.py` performs spectral analysis on mooring and gridded data timeseries
 
 The program is structured as follow:
 * 1- reading the dataset
@@ -43,22 +42,23 @@ The program is structured as follow:
 <b>Example alongtrack direction</b>
 </p>
 
-![segment along track](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_alongtrack_direction.gif)
+![segment along track](./share/scuba_files/example_segment_alongtrack_direction2.gif)
 
 <p align="center">
 <b>Example zonal direction</b>
 </p>
 
-![segment zonal](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_x_direction.gif)
+![segment zonal](./share/scuba_files/example_segment_x_direction2.gif)
 
 <p align="center">
 <b>Example meridional direction</b>
 </p>
 
-![segment meridional](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_segment_y_direction.gif)
+![segment meridional](./share/scuba_files/example_segment_y_direction2.gif)
 
 * 3- performing spectral analysis in boxes by selecting all the segments of the database found within the box
-![segment selection](https://github.com/mballaro/scuba/blob/master/share/scuba_files/example_selection.gif)
+
+![segment selection](./share/scuba_files/example_selection2.gif)
 
 
 * 4- gridding the results
@@ -70,39 +70,50 @@ The program is structured as follow:
 ## Running test cases
 ---
      >> cd test_case/
-     >> python ../src/scuba_grid.py example_scuba_grid.yaml
-	 >> python ../src/scuba_alongtrack.py example_scuba_alongtrack.yaml
+     >> ./run_example.x
+
 
 This test cases performs spectral analysis on altimeter maps and along-track data. For more detail on the analysis parameters see *.yaml parameter files.
 
-## Visualisation of the results
+## Goodies & Visualisation of the results
 ---
      >> cd tools
-     >> python display_resolution.py ../test_case/psd_alongtrack_direction.nc
+The `tools` folder contains several scripts for additional diagnostics (autocorrelation, resolution, ...): 
+* `compute_autocorrelation_alongtrack.py` computes autocorrelation functions from along-track analysis
+* `compute_autocorrelation_tg_mooring.py` computes autocorrelation functions from tide-gauges or mooring analysis
+* `compute_effective_resolution_alongtrack.py` computes map effective spatial resolution from along-track/map analysis
+* `compute_effective_resolution_tg_mooring.py` computes map effective temporal resolution from tide-gauges or mooring analysis
+* `compute_effective_resolution_transfer_function.py` computes filter transfer function 
+* `compute_resolution_limit_alongtrack.py` computes along-track resolution as defioned in Dufau et al. (2016)
+* `compute_skill_score.py` computes skill score (under dev)
+* `compute_variance.py` computes variance
+* `display_scuba_alongtrack.py` shows spectral analysis for along-track 
+* `display_scuba_grid.py` shows spectral analysis for grids
+* `plot_spatial_resolution.py`  shows spatial resolution
+* `plot_temporal_resolution.py` shows temporal resolution    
 
-![RESOLUTION](https://github.com/mballaro/scuba/blob/master/share/scuba_files/resolution.png)
+Some examples below:
 
-     >> python display_scuba_alongtrack.py ../test_case/psd_alongtrack_direction.nc
+     >> cd test_case/
+     >> python ../tools/compute_effective_resolution_alongtrack.py psd_alongtrack_direction.nc effective_resolution_alongtrack.nc
+     >> python ../tools/plot_spatial_resolution.py effective_resolution_alongtrack.nc
      
-![SPECTRAL](https://github.com/mballaro/scuba/blob/master/share/scuba_files/spectrum.png)
+![RESOLUTION](./share/scuba_files/spatial_resolution.png)
 
-     >> python display_spectral_taylor_diagram.py ../test_case/psd_alongtrack_direction.nc
+     >> python ../tools/compute_effective_resolution_tg_mooring.py psd_tide_gauge.nc effective_resolution_tg.nc
+     >> python ../tools/plot_temporal_resolution.py effective_resolution_tg.nc
 
-![TD](https://github.com/mballaro/scuba/blob/master/share/scuba_files/spectral_taylor_diagram.png)
+![RESOLUTION_TG](./share/scuba_files/temporal_resolution_tg.png)
 
-    >> python display_scuba_tide_gauge.py ../test_case/psd_tide_gauge.nc
+     >> python ../tools/compute_effective_resolution_tg_mooring.py psd_mooring.nc effective_resolution_mooring.nc
+     >> python ../tools/plot_temporal_resolution.py effective_resolution_mooring.nc
 
-![TIDE](https://github.com/mballaro/scuba/blob/master/share/scuba_files/effective_temporal_resolution.png)
+![RESOLUTION_MOORING](./share/scuba_files/temporal_resolution_mooring.png)
 
-![SPECTRAL_TIDE](https://github.com/mballaro/scuba/blob/master/share/scuba_files/temporal_spectrum.png)
+     >> python ../tools/display_scuba_alongtrack.py psd_alongtrack_direction.nc
 
-    >> python display_scuba_tao.py ../test_case/psd_tao.nc
-
-![TAO](https://github.com/mballaro/scuba/blob/master/share/scuba_files/effective_temporal_resolution_tao.png)
-
-![SPECTRAL_TAO](https://github.com/mballaro/scuba/blob/master/share/scuba_files/temporal_spectrum_tao.png)
+![SPECTRAL](./share/scuba_files/spectral_analysis.png)
 
 # Authors and Contributors
 * Maxime Ballarotta, Clément Ubelmann
 * _Feel free to dive in ..._
-

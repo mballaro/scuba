@@ -81,6 +81,12 @@ AL:
    # delta T in fact non-constant (intervalle [1.056,1.128] s)
    DELTA_T: 1.056
    VELOCITY: 6.73
+   
+# SARAL/AltiKa HR
+AL_HR:
+   # delta T in fact non-constant (intervalle [1.056,1.128] s)
+   DELTA_T: 0.0264
+   VELOCITY: 6.73
 
 # Envisat drift
 ENN:

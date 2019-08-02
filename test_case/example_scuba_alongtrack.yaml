@@ -5,10 +5,16 @@ inputs:
    # map_file_pattern: file pattern for file selection: 
    # mission: mission acronym (ex: AL, H2, J2, C2 ....)
    input_file_reference: ./inputs/alongtrack/sla_al_20140101-20140131.nc
+   ref_field_lon_name: longitude
+   ref_field_lat_name: latitude
+   ref_field_time_name: time
+   ref_field_name: SLA
+   ref_field_type_CLS: False
    ref_field_scale_factor: 1
    input_map_directory: ./inputs/maps
    study_field_scale_factor: 1
    map_file_pattern: dt_global_allsat_phy_l4_
+   study_field_type_CLS: False
    mission: AL
    
 properties:
@@ -26,7 +32,6 @@ properties:
         urcrnrlat: 90
         flag_roll: False
         flag_ewp: False
-        flag_greenwich_start: True
         
     time_window:
         # YYYYMMDD_min: lower bound temporal window (ex: 20150101)
@@ -40,7 +45,7 @@ properties:
     # flag_edit_coastal: Activate / Deactivate coastal distance editing (ex: True/False)
     # file_coastal_distance: netCDF file including coastal distance in km (ex: DistanceTerre_1_8_patched.nc)
     # coastal_criteria: band lenght in km for coastal editing (ex: 100.)
-    flag_edit_coastal: True
+    flag_edit_coastal: False
     file_coastal_distance: ../share/land_distance_R0125_patched_island.nc
     coastal_criteria: 100.
     
@@ -55,6 +60,7 @@ properties:
         # equal_area: flag for setting equal_area global averaging (True/False). If true averaging based on lenght_scale
         flag_reference_only: False
         lenght_scale: 800.
+        segment_overlapping: 0.25
         delta_lat: 10.
         delta_lon: 10.
         equal_area: False
@@ -65,5 +71,6 @@ outputs:
     # output_filename: output filename spectral computation
     output_lon_resolution: 1.
     output_lat_resolution: 1.
+    output_segment_filename: segment.nc
     output_filename: psd_alongtrack_direction.nc
 

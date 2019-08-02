@@ -1,271 +1,242 @@
-from netCDF4 import Dataset
+
+from netCDF4 import Dataset, date2num
 import numpy as np
 import datetime
+from sys import exit
+import xarray as xr
+import glob
 
 from mod_constant import *
 from mod_geo import *
 from mod_editing import *
-from yaml import load
+from yaml import load, Loader
 
 
-def read_grid_field(input_file_reference, lon_name, lat_name, field_name,
-                    study_lon_min, study_lon_max, study_lat_min, study_lat_max, flag_ewp, flag_roll):
+def read_grid(config, case):
+
+    buffer_zone = np.int(0.01 * config['properties']['spectral_parameters']['lenght_scale'])
+    study_lon_min = config['properties']['study_area']['llcrnrlon'] - buffer_zone
+    study_lon_max = config['properties']['study_area']['urcrnrlon'] + buffer_zone
+    study_lat_min = config['properties']['study_area']['llcrnrlat'] - buffer_zone
+    study_lat_max = config['properties']['study_area']['urcrnrlat'] + buffer_zone
+    start = datetime.datetime.strptime(str(config['properties']['time_window']['YYYYMMDD_min']), '%Y%m%d')
+    end = datetime.datetime.strptime(str(config['properties']['time_window']['YYYYMMDD_max']), '%Y%m%d')
+    study_time_min = int(date2num(start, units="days since 1950-01-01", calendar='standard'))
+    study_time_max = int(date2num(end, units="days since 1950-01-01", calendar='standard'))
+    flag_ewp = config['properties']['study_area']['flag_ewp']
+
+    # Open either single or multi-file data set depending if list of wildcard
+    if case == 'ref':
+        ncfile = config['inputs']['input_file_reference']
+        # Get time, lon, lat name from well known name
+        lon_varname = config['inputs']['ref_field_lon_name']
+        lat_varname = config['inputs']['ref_field_lat_name']
+        time_varname = config['inputs']['ref_field_time_name']
+        field_varname = config['inputs']['ref_field_name']
+
+    elif case == 'study':
+        ncfile = config['inputs']['input_file_study']
+        # Get time, lon, lat name from well known name
+        lon_varname = config['inputs']['study_field_lon_name']
+        lat_varname = config['inputs']['study_field_lat_name']
+        time_varname = config['inputs']['study_field_time_name']
+        field_varname = config['inputs']['study_field_name']
+    else:
+        print("Unknown case in read_grid")
+        ncfile = None
+        lon_varname = None
+        lat_varname = None
+        time_varname = None
+        field_varname = None
+        exit(0)
+
+    if "*" in ncfile or isinstance(ncfile, list):
+        ds = xr.open_mfdataset(ncfile, decode_times=False)
+    else:
+        ds = xr.open_dataset(ncfile, decode_times=False)
+
+    ds = ds.where((ds[lon_varname] >= study_lon_min) & (ds[lon_varname] <= study_lon_max), drop=True)
+    ds = ds.where((ds[lat_varname] >= study_lat_min) & (ds[lat_varname] <= study_lat_max), drop=True)
+    ds = ds.where((ds[time_varname] >= study_time_min) & (ds[time_varname] <= study_time_max), drop=True)
+
+    time = ds[time_varname].values
+    lon = ds[lon_varname].values
+    lat = ds[lat_varname].values
+    ssh = ds[field_varname].values
+
+    delta_lon = np.abs(lon[0] - lon[1])
+
+    # check dimension order
+    if lon.size == np.shape(ssh)[1] and lat.size == np.shape(ssh)[2]:
+        # swith time order (time, lat, lon) order
+        ssh = np.swapaxes(ssh, 1, 2)
+
+    elif lon.size == np.shape(ssh)[2] and lat.size == np.shape(ssh)[1]:
+        pass
+
+    else:
+        print("Check dimension order of input file")
+        exit(0)
+
+    if flag_ewp:
+        npt_x_extra = np.int(buffer_zone / delta_lon)  # add 20 degree extra point on left and right
+        lx = ssh[0, 0, :].size
+        ssh_east = ssh[:, :, 0:npt_x_extra]
+        lon_east = lon[0:npt_x_extra]
+        ssh_west = ssh[:, :, lx - npt_x_extra:]
+        lon_west = lon[lx - npt_x_extra:]
+
+        tmp = np.concatenate((lon_west - 360., lon), axis=-1)
+        final_lon = np.concatenate((tmp, lon_east + 360), axis=-1)
+        tmp = np.concatenate((ssh_west, ssh), axis=-1)
+        final_sla = np.concatenate((tmp, ssh_east), axis=-1)
+
+        ssh = final_sla
+        lon = final_lon
+
+    ssh = np.ma.masked_invalid(ssh)
+    ssh = np.ma.masked_outside(ssh, -1000, 1000)
+
+    return ssh, time, lon, lat, delta_lon
+
+
+def read_along_track(config):
     """
-    Read input field from netcdf file
-    :param input_file_reference:
-    :param lon_name:
-    :param lat_name:
-    :param field_name:
-    :param study_lon_min:
-    :param study_lon_max:
-    :param study_lat_min:
-    :param study_lat_max:
-    :param flag_ewp:
+
+    :param config:
     :return:
     """
 
-    # Read reference MDT map
-    fid = Dataset(input_file_reference, 'r')
-    lon_ref_map = fid.variables[lon_name][:]
+    buffer_zone = np.int(0.01 * config['properties']['spectral_parameters']['lenght_scale'])
+    study_lon_min = config['properties']['study_area']['llcrnrlon'] - buffer_zone
+    study_lon_max = config['properties']['study_area']['urcrnrlon'] + buffer_zone
+    study_lat_min = config['properties']['study_area']['llcrnrlat'] - buffer_zone
+    study_lat_max = config['properties']['study_area']['urcrnrlat'] + buffer_zone
+    start = datetime.datetime.strptime(str(config['properties']['time_window']['YYYYMMDD_min']), '%Y%m%d')
+    end = datetime.datetime.strptime(str(config['properties']['time_window']['YYYYMMDD_max']), '%Y%m%d')
+    study_time_min = int(date2num(start, units="days since 1950-01-01", calendar='standard'))
+    study_time_max = int(date2num(end, units="days since 1950-01-01", calendar='standard'))
 
-    if flag_roll:
-        lon_ref_map = np.where(lon_ref_map > 180, lon_ref_map-360, lon_ref_map)
+    # Open either single or multi-file data set depending if list of wildcard
+    ncfile = config['inputs']['input_file_reference']
+    if "*" in ncfile or isinstance(ncfile, list):
+        ds = xr.open_mfdataset(ncfile, decode_times=False)
+    else:
+        ds = xr.open_dataset(ncfile, decode_times=False)
 
-    lat_ref_map = fid.variables[lat_name][:]
-    ii_min = find_nearest_index(lon_ref_map, study_lon_min - buffer_zone)
-    ii_max = find_nearest_index(lon_ref_map, study_lon_max + buffer_zone)
-    jj_min = find_nearest_index(lat_ref_map, study_lat_min - buffer_zone)
-    jj_max = find_nearest_index(lat_ref_map, study_lat_max + buffer_zone)
-    sla_ref_map = fid.variables[field_name][:, jj_min:jj_max, ii_min:ii_max]
-    lon_ref_map = fid.variables[lon_name][ii_min:ii_max]
-    lat_ref_map = fid.variables[lat_name][jj_min:jj_max]
-    fid.close()
+    # Get time, lon, lat name from well known name
+    lon_varname = config['inputs']['ref_field_lon_name']
+    lat_varname = config['inputs']['ref_field_lat_name']
+    time_varname = config['inputs']['ref_field_time_name']
+    field_varname = config['inputs']['ref_field_name']
 
-    if flag_roll:
-        lon_ref_map = np.where(lon_ref_map > 180, lon_ref_map-360, lon_ref_map)
-
-    delta_lon_in = np.abs(lon_ref_map[0] - lon_ref_map[1])
-
-    if flag_ewp:
-        npt_x_extra = np.int(20 / delta_lon_in)  # add 20 degree extra point on left and right
-        lx = sla_ref_map[0, 0, :].size
-        sla_ref_map_east = sla_ref_map[:, :, 0:npt_x_extra]
-        lon_ref_map_east = lon_ref_map[0:npt_x_extra]
-        sla_ref_map_west = sla_ref_map[:, :, lx - npt_x_extra:]
-        lon_ref_map_west = lon_ref_map[lx - npt_x_extra:]
-
-        tmp = np.concatenate((lon_ref_map_west - 360., lon_ref_map), axis=-1)
-        final_lon = np.concatenate((tmp, lon_ref_map_east + 360), axis=-1)
-        tmp = np.concatenate((sla_ref_map_west, sla_ref_map), axis=-1)
-        final_sla = np.concatenate((tmp, sla_ref_map_east), axis=-1)
-
-        sla_ref_map = final_sla
-        lon_ref_map = final_lon
-
-    sla_ref_map = np.ma.masked_where(np.abs(sla_ref_map) > 1.E10, sla_ref_map)
-
-    return lon_ref_map, lat_ref_map, sla_ref_map, delta_lon_in
-
-
-def read_grid_fieldT(input_file_reference, lon_name, lat_name, field_name,
-                    study_lon_min, study_lon_max, study_lat_min, study_lat_max, flag_ewp):
-    """
-    Read input field from netcdf file
-    :param input_file_reference:
-    :param lon_name:
-    :param lat_name:
-    :param field_name:
-    :param study_lon_min:
-    :param study_lon_max:
-    :param study_lat_min:
-    :param study_lat_max:
-    :param flag_ewp:
-    :return:
-    """
-
-    # Read reference MDT map
-    fid = Dataset(input_file_reference, 'r')
-    lon_ref_map = fid.variables[lon_name][:]
-    lat_ref_map = fid.variables[lat_name][:]
-    time_ref_map = fid.variables["time"][:]
-    ii_min = find_nearest_index(lon_ref_map, study_lon_min - buffer_zone)
-    ii_max = find_nearest_index(lon_ref_map, study_lon_max + buffer_zone)
-    jj_min = find_nearest_index(lat_ref_map, study_lat_min - buffer_zone)
-    jj_max = find_nearest_index(lat_ref_map, study_lat_max + buffer_zone)
-    sla_ref_map = fid.variables[field_name][:, jj_min:jj_max, ii_min:ii_max]
-    lon_ref_map = fid.variables[lon_name][ii_min:ii_max]
-    lat_ref_map = fid.variables[lat_name][jj_min:jj_max]
-    fid.close()
-
-    delta_lon_in = np.abs(lon_ref_map[0] - lon_ref_map[1])
-
-    if flag_ewp:
-        npt_x_extra = np.int(20 / delta_lon_in)  # add 20 degree extra point on left and right
-        lx = sla_ref_map[0, 0, :].size
-        sla_ref_map_east = sla_ref_map[:, :, 0:npt_x_extra]
-        lon_ref_map_east = lon_ref_map[0:npt_x_extra]
-        sla_ref_map_west = sla_ref_map[:, :, lx - npt_x_extra:]
-        lon_ref_map_west = lon_ref_map[lx - npt_x_extra:]
-
-        tmp = np.concatenate((lon_ref_map_west - 360., lon_ref_map), axis=-1)
-        final_lon = np.concatenate((tmp, lon_ref_map_east + 360), axis=-1)
-        tmp = np.concatenate((sla_ref_map_west, sla_ref_map), axis=-1)
-        final_sla = np.concatenate((tmp, sla_ref_map_east), axis=-1)
-
-        sla_ref_map = final_sla
-        lon_ref_map = final_lon
-
-    sla_ref_map = np.ma.masked_where(np.abs(sla_ref_map) > 1.E10, sla_ref_map)
-
-    return lon_ref_map, lat_ref_map, time_ref_map, sla_ref_map, delta_lon_in
-
-
-def read_mdt(input_file_reference, study_lon_min, study_lon_max, study_lat_min, study_lat_max, flag_ewp):
-    """
-
-    :param input_file_reference:
-    :param study_lon_min:
-    :param study_lon_max:
-    :param study_lat_min:
-    :param study_lat_max:
-    :param flag_ewp:
-    :return:
-    """
-
-    # Read reference MDT map
-    fid = Dataset(input_file_reference, 'r')
-    lon_ref_map = fid.variables['lon'][:]
-    lat_ref_map = fid.variables['lat'][:]
-    ii_min = find_nearest_index(lon_ref_map, study_lon_min - buffer_zone)
-    ii_max = find_nearest_index(lon_ref_map, study_lon_max + buffer_zone)
-    jj_min = find_nearest_index(lat_ref_map, study_lat_min - buffer_zone)
-    jj_max = find_nearest_index(lat_ref_map, study_lat_max + buffer_zone)
-    sla_ref_map = fid.variables['mdt'][:, jj_min:jj_max, ii_min:ii_max]
-    lon_ref_map = fid.variables['lon'][ii_min:ii_max]
-    lat_ref_map = fid.variables['lat'][jj_min:jj_max]
-    fid.close()
-
-    delta_lon_in = np.abs(lon_ref_map[0] - lon_ref_map[1])
-
-    if flag_ewp:
-        npt_x_extra = np.int(20 / delta_lon_in)  # add 20 degree extra point on left and right
-        lx = sla_ref_map[0, 0, :].size
-        sla_ref_map_east = sla_ref_map[:, :, 0:npt_x_extra]
-        lon_ref_map_east = lon_ref_map[0:npt_x_extra]
-        sla_ref_map_west = sla_ref_map[:, :, lx - npt_x_extra:]
-        lon_ref_map_west = lon_ref_map[lx - npt_x_extra:]
-
-        tmp = np.concatenate((lon_ref_map_west - 360., lon_ref_map), axis=-1)
-        final_lon = np.concatenate((tmp, lon_ref_map_east + 360), axis=-1)
-        tmp = np.concatenate((sla_ref_map_west, sla_ref_map), axis=-1)
-        final_sla = np.concatenate((tmp, sla_ref_map_east), axis=-1)
-
-        sla_ref_map = final_sla
-        lon_ref_map = final_lon
-
-    sla_ref_map = np.ma.masked_where(np.abs(sla_ref_map) > 1.E10, sla_ref_map)
-
-    return lon_ref_map, lat_ref_map, sla_ref_map, delta_lon_in
-
-
-def read_natl60(input_file_reference, study_lon_min, study_lon_max, study_lat_min, study_lat_max, flag_ewp):
-    """
-
-    :param input_file_reference:
-    :param study_lon_min:
-    :param study_lon_max:
-    :param study_lat_min:
-    :param study_lat_max:
-    :param flag_ewp:
-    :return:
-    """
-
-    # Read reference MDT map
-    fid = Dataset(input_file_reference, 'r')
-    lon_ref_map = fid.variables['lon'][:]
-    lat_ref_map = fid.variables['lat'][:]
-    ii_min = find_nearest_index(lon_ref_map, study_lon_min - buffer_zone)
-    ii_max = find_nearest_index(lon_ref_map, study_lon_max + buffer_zone)
-    jj_min = find_nearest_index(lat_ref_map, study_lat_min - buffer_zone)
-    jj_max = find_nearest_index(lat_ref_map, study_lat_max + buffer_zone)
-    sla_ref_map = fid.variables['sossheig'][:, jj_min:jj_max, ii_min:ii_max]
-    lon_ref_map = fid.variables['lon'][ii_min:ii_max]
-    lat_ref_map = fid.variables['lat'][jj_min:jj_max]
-    fid.close()
-
-    delta_lon_in = np.abs(lon_ref_map[0] - lon_ref_map[1])
-
-    if flag_ewp:
-        npt_x_extra = np.int(20 / delta_lon_in)  # add 20 degree extra point on left and right
-        lx = sla_ref_map[0, 0, :].size
-        sla_ref_map_east = sla_ref_map[:, :, 0:npt_x_extra]
-        lon_ref_map_east = lon_ref_map[0:npt_x_extra]
-        sla_ref_map_west = sla_ref_map[:, :, lx - npt_x_extra:]
-        lon_ref_map_west = lon_ref_map[lx - npt_x_extra:]
-
-        tmp = np.concatenate((lon_ref_map_west - 360., lon_ref_map), axis=-1)
-        final_lon = np.concatenate((tmp, lon_ref_map_east + 360), axis=-1)
-        tmp = np.concatenate((sla_ref_map_west, sla_ref_map), axis=-1)
-        final_sla = np.concatenate((tmp, sla_ref_map_east), axis=-1)
-
-        sla_ref_map = final_sla
-        lon_ref_map = final_lon
-
-    sla_ref_map = np.ma.masked_where(np.abs(sla_ref_map) > 1.E10, sla_ref_map)
-
-    return lon_ref_map, lat_ref_map, sla_ref_map, delta_lon_in
-
-
-def read_along_track(input_file_alongtrack,
-                     study_time_min, study_time_max,
-                     study_lon_min, study_lon_max,
-                     study_lat_min, study_lat_max,
-                     flag_edit_spatiotemporal_incoherence,
-                     flag_edit_coastal, file_coastal_distance, coastal_criteria, flag_roll):
-
-    # Read and select independent along-track data in the time windows
-    fid = Dataset(input_file_alongtrack, 'r')
-    timep = np.array(fid.variables['time'][:])
-    lonp = np.array(fid.variables['longitude'][:])
+    time = ds[time_varname].values
+    lon = ds[lon_varname].values
+    lat = ds[lat_varname].values
 
     # For Med Sea (a verifier)
-    if flag_roll:
-        lonp = np.where(lonp >= 180, lonp - 360, lonp)
+    if config['properties']['study_area']['flag_roll']:
+        lon = np.where(lon >= 180, lon - 360, lon)
 
-    latp = np.array(fid.variables['latitude'][:])
-    inds = np.where((timep >= study_time_min) & (timep <= study_time_max) &
-                    (lonp >= study_lon_min - buffer_zone) & (lonp <= study_lon_max + buffer_zone) &
-                    (latp >= study_lat_min - buffer_zone) & (latp <= study_lat_max + buffer_zone))[0]
-    lonp = np.array(fid.variables['longitude'][inds])
-    latp = np.array(fid.variables['latitude'][inds])
-    slap = np.array(fid.variables['SLA'][inds])
-    timep = timep[inds]
-    fid.close()
+    inds = np.where((time >= study_time_min) & (time <= study_time_max) &
+                    (lon >= study_lon_min) & (lon <= study_lon_max) &
+                    (lat >= study_lat_min) & (lat <= study_lat_max))[0]
 
-    # Remove aberrant data that might be present in along-track (spatio-temporal incoherence BUG ConvertirTableResidus)
-    if flag_edit_spatiotemporal_incoherence:
-        print("start suspicious velocity editing", str(datetime.datetime.now()))
-        timep, lonp, latp, slap = edit_bad_velocity(input_file_independent_alongtrack)
-        print("end suspicious velocity editing", str(datetime.datetime.now()))
-        inds = np.where((timep >= study_time_min) & (timep <= study_time_max) &
-                        (lonp >= study_lon_min - buffer_zone) & (lonp <= study_lon_max + buffer_zone) &
-                        (latp >= study_lat_min - buffer_zone) & (latp <= study_lat_max + buffer_zone))[0]
-        lonp = lonp[inds]
-        latp = latp[inds]
-        slap = slap[inds]
-        timep = timep[inds]
+    lon = lon[inds]
+    lat = lat[inds]
+    time = time[inds]
+    field = ds[field_varname][inds]
+    ref_field_scale_factor = config['inputs']['ref_field_scale_factor']
+    field = ref_field_scale_factor * field
 
     # Edit coastal value
-    if flag_edit_coastal:
+    if config['properties']['flag_edit_coastal']:
         print("start coastal editing", str(datetime.datetime.now()))
-        slap, timep, lonp, latp = edit_coastal_data(slap, lonp, latp, timep,
-                                                    file_coastal_distance, coastal_criteria, flag_roll)
+        field, time, lon, lat = edit_coastal_data(field, lon, lat, time,
+                                                  config['properties']['file_coastal_distance'],
+                                                  config['properties']['coastal_criteria'],
+                                                  config['properties']['study_area']['flag_roll'])
         print("end coastal editing", str(datetime.datetime.now()))
 
-    # Interpolate when gap is smaller than XXcoastal_criteria
-    # TODO if necessary
+    # Delete Dataset
+    del ds
 
-    return slap, timep, lonp, latp
+    return field, time, lon, lat
+
+
+def read_along_track_cls(config):
+    """
+
+    :param config:
+    :return:
+    """
+
+    buffer_zone = np.int(0.01 * config['properties']['spectral_parameters']['lenght_scale'])
+    study_lon_min = config['properties']['study_area']['llcrnrlon'] - buffer_zone
+    study_lon_max = config['properties']['study_area']['urcrnrlon'] + buffer_zone
+    study_lat_min = config['properties']['study_area']['llcrnrlat'] - buffer_zone
+    study_lat_max = config['properties']['study_area']['urcrnrlat'] + buffer_zone
+    start = datetime.datetime.strptime(str(config['properties']['time_window']['YYYYMMDD_min']), '%Y%m%d')
+    end = datetime.datetime.strptime(str(config['properties']['time_window']['YYYYMMDD_max']), '%Y%m%d')
+    study_time_min = int(date2num(start, units="days since 1950-01-01", calendar='standard'))
+    study_time_max = int(date2num(end, units="days since 1950-01-01", calendar='standard'))
+
+    lon_tmp = []
+    lat_tmp = []
+    time_tmp = []
+    sla_tmp = []
+
+    list_of_file = glob.glob(config['inputs']['input_file_reference'])
+    for filename in sorted(list_of_file):
+
+        ncfile = Dataset(filename, "r")
+        deltat = ncfile.variables['DeltaT'][:]
+        dataindexes = ncfile.variables['DataIndexes'][:]
+        begindates = ncfile.variables['BeginDates'][:, 0]
+        nbpoints = ncfile.variables['NbPoints'][:]
+        lon_alongtrack = ncfile.variables['Longitudes'][:]
+        lat_alongtrack = ncfile.variables['Latitudes'][:]
+        sla_alongtrack = ncfile.variables['SLA'][:]
+        ncfile.close()
+
+        # Convert CLS time in julian days
+        time_alongtrack = np.repeat(begindates, nbpoints, axis=0) + dataindexes * deltat / 86400.0
+
+        lon_tmp = np.append(lon_tmp, lon_alongtrack)
+        lat_tmp = np.append(lat_tmp, lat_alongtrack)
+        time_tmp = np.append(time_tmp, time_alongtrack)
+        sla_tmp = np.append(sla_tmp, sla_alongtrack)
+
+    lon = np.asarray(lon_tmp).flatten()
+    lat = np.asarray(lat_tmp).flatten()
+    time = np.asarray(time_tmp).flatten()
+    field = np.ma.masked_outside(np.asarray(sla_tmp).flatten(), -10., 10.)
+
+    # For Med Sea (a verifier)
+    if config['properties']['study_area']['flag_roll']:
+        lon = np.where(lon >= 180, lon - 360, lon)
+
+    inds = np.where((time >= study_time_min) & (time <= study_time_max) &
+                    (lon >= study_lon_min) & (lon <= study_lon_max) &
+                    (lat >= study_lat_min) & (lat <= study_lat_max))[0]
+
+    lon = lon[inds]
+    lat = lat[inds]
+    time = time[inds]
+    field = field[inds]
+    ref_field_scale_factor = config['inputs']['ref_field_scale_factor']
+    field = ref_field_scale_factor * field
+
+    # Edit coastal value
+    if config['properties']['flag_edit_coastal']:
+        print("start coastal editing", str(datetime.datetime.now()))
+        field, time, lon, lat = edit_coastal_data(field, lon, lat, time,
+                                                  config['properties']['file_coastal_distance'],
+                                                  config['properties']['coastal_criteria'],
+                                                  config['properties']['study_area']['flag_roll'])
+        print("end coastal editing", str(datetime.datetime.now()))
+
+    return field, time, lon, lat
 
 
 def read_tide_gauge(filename):
@@ -284,6 +255,24 @@ def read_tide_gauge(filename):
     nc.close()
 
     return sla_tg, sla_alti, time_tg, lat_tg, lon_tg
+
+
+def read_mooring(filename):
+    """
+
+    :param filename:
+    :return:
+    """
+
+    nc = Dataset(filename, 'r')
+    time = nc.variables['time'][:]
+    sla_alti = nc.variables['ssh_alti'][:]
+    sla_mooring = nc.variables['ssh_sensor'][:]
+    lat = nc.variables['lat'][0]
+    lon = nc.variables['lon'][0]
+    nc.close()
+
+    return sla_mooring, sla_alti, time, lat, lon
 
 
 def read_tao(filename):
@@ -309,7 +298,7 @@ def read_cls_format(fcid):
     :param fcid:
     :return:
     """
-    sla_map = np.array(fcid.variables['Grid_0001'][:, :]).transpose() / 100.  # convert in meters
+    sla_map = np.array(fcid.variables['Grid_0001'][:, :]).transpose()  # / 100.  # convert in meters
     lat_map = np.array(fcid.variables['NbLatitudes'][:])
     lon_map = np.array(fcid.variables['NbLongitudes'][:])
 
@@ -333,7 +322,7 @@ def get_velocity(cmission, mission_management):
     """
     Get velocity of a mission from MissionManagement.yaml
     """
-    yaml = load(open(str(mission_management)))
+    yaml = load(open(str(mission_management)), Loader=Loader)
     velocity = yaml[cmission]['VELOCITY']
     if velocity is not None:
         return velocity
@@ -345,7 +334,7 @@ def get_deltat(cmission, mission_management):
     """
     Get deltaT of a mission from file MissionManagement.yaml
     """
-    yaml = load(open(str(mission_management)))
+    yaml = load(open(str(mission_management)), Loader=Loader)
     deltat = yaml[cmission]['DELTA_T']
     if deltat is not None:
         return deltat
@@ -353,351 +342,323 @@ def get_deltat(cmission, mission_management):
         raise ValueError("deltat not found for mission %s in %s" % (cmission, mission_management))
 
 
-def write_netcdf_output(output_netcdf_file,
-                        vlon, vlat, output_effective_lon, output_effective_lat,
-                        output_mean_frequency, output_nb_segment, freq_unit,
-                        output_mean_ps_sla_ref, output_mean_psd_sla_ref,
-                        output_autocorrelation_distance,
-                        output_autocorrelation_ref,
-                        output_autocorrelation_ref_zero_crossing,
-                        output_global_mean_frequency,
-                        output_global_mean_psd_sla_ref,
-                        output_global_mean_ps_sla_ref,
-                        output_global_mean_psd_sla_study=None,
-                        output_global_mean_ps_sla_study=None,
-                        output_mean_ps_sla_study=None, output_mean_psd_sla_study=None,
-                        output_autocorrelation_study=None,
-                        output_autocorrelation_study_zero_crossing=None,
-                        output_mean_ps_diff_sla_ref_sla_study=None, output_mean_psd_diff_sla_ref_sla_study=None,
-                        output_mean_coherence=None, output_effective_resolution=None, output_useful_resolution=None,
-                        output_cross_correlation=None):
+def write_segment(config, lat_segment, lon_segment, sla_segment, resolution, resolution_units, npt,
+                  segment_study=None, direction=None):
     """
 
-    :param output_netcdf_file:
-    :param vlon:
-    :param vlat:
-    :param output_effective_lon:
-    :param output_effective_lat:
-    :param output_mean_frequency:
-    :param output_nb_segment:
-    :param freq_unit:
-    :param output_mean_ps_sla_ref:
-    :param output_mean_psd_sla_ref:
-    :param output_autocorrelation_distance:
-    :param output_autocorrelation_ref:
-    :param output_autocorrelation_ref_zero_crossing:
-    :param output_mean_ps_sla_study:
-    :param output_mean_psd_sla_study:
-    :param output_autocorrelation_study:
-    :param output_autocorrelation_study_zero_crossing:
-    :param output_mean_ps_diff_sla_ref_sla_study:
-    :param output_mean_psd_diff_sla_ref_sla_study:
-    :param output_mean_coherence:
-    :param output_effective_resolution:
-    :param output_useful_resolution:
+    :param config:
+    :param lat_segment:
+    :param lon_segment:
+    :param sla_segment:
+    :param resolution:
+    :param resolution_units:
+    :param npt:
+    :param segment_study:
+    :param direction:
     :return:
     """
 
-    nc_out = Dataset(output_netcdf_file, 'w', format='NETCDF4')
-    nc_out.createDimension('f', np.shape(np.asarray(output_mean_frequency))[1])
-    nc_out.createDimension('d', np.shape(np.asarray(output_autocorrelation_distance))[1])
-    nc_out.createDimension('y', vlat.size)
-    nc_out.createDimension('x', vlon.size)
+    if direction == 'zonal':
+        output = config['outputs']['output_segment_filename_x_direction']
+    elif direction == 'meridional':
+        output = config['outputs']['output_segment_filename_y_direction']
+    else:
+        output = config['outputs']['output_segment_filename']
 
-    array1 = np.swapaxes(
-        np.asarray(output_mean_frequency).reshape(
-            (vlat.size, vlon.size, np.shape(np.asarray(output_mean_frequency))[1])).T, 1, 2)
-    frequence_out = nc_out.createVariable('frequency', 'f8', ('f', 'y', 'x'))
+    nc_out = Dataset(output, 'w', format='NETCDF4')
+    nb_segment = np.shape(np.asarray(sla_segment))[0]
+    
+    nc_out.createDimension('segment_size', npt)
+    nc_out.createDimension('nb_segment', nb_segment)
+    nc_out.createDimension('resolution', 1)
+
+    lon_out = nc_out.createVariable('lon', 'f8', 'nb_segment')
+    lon_out[:] = np.asarray(lon_segment)
+    lon_out.longname = 'longitude segment center'
+
+    lat_out = nc_out.createVariable('lat', 'f8', 'nb_segment')
+    lat_out[:] = np.asarray(lat_segment)
+    lat_out.longname = 'latitude segment center'
+
+    segment_out = nc_out.createVariable('sla_segment', 'f8', ('nb_segment', 'segment_size'))
+    
+    segment_out[:, :] = np.asarray(sla_segment)
+    segment_out.longname = 'array of segments'
+
+    if segment_study is not None:
+        segment_study_out = nc_out.createVariable('sla_study_segment', 'f8', ('nb_segment', 'segment_size'))
+        segment_study_out[:, :] = np.asarray(segment_study)
+        segment_study_out.longname = 'array of study segments'
+
+    segment_resolution = nc_out.createVariable('resolution', 'f8', 'resolution')
+    segment_resolution[:] = resolution
+    segment_resolution.longname = 'resolution of segments'
+    segment_resolution.units = resolution_units
+
+    nc_out.close()
+
+
+def write_netcdf_output(config, wavenumber, nb_segment, freq_unit, psd_ref, global_psd_ref,
+                        global_psd_study=None,
+                        psd_study=None,
+                        psd_diff_ref_study=None,
+                        coherence=None,
+                        cross_spectrum=None,
+                        direction=None):
+    """
+
+    :param config:
+    :param wavenumber:
+    :param nb_segment:
+    :param freq_unit:
+    :param psd_ref:
+    :param global_psd_ref:
+    :param global_psd_study:
+    :param psd_study:
+    :param psd_diff_ref_study:
+    :param coherence:
+    :param cross_spectrum:
+    :param direction:
+    :return:
+    """
+
+    study_lon_min = config['properties']['study_area']['llcrnrlon']
+    study_lon_max = config['properties']['study_area']['urcrnrlon']
+    study_lat_min = config['properties']['study_area']['llcrnrlat']
+    study_lat_max = config['properties']['study_area']['urcrnrlat']
+    lat = np.arange(study_lat_min, study_lat_max, config['outputs']['output_lat_resolution'])
+    lon = np.arange(study_lon_min, study_lon_max, config['outputs']['output_lon_resolution'])
+    if direction == 'zonal':
+        output_netcdf_file = config['outputs']['output_filename_x_direction']
+    elif direction == 'meridional':
+        output_netcdf_file = config['outputs']['output_filename_y_direction']
+    else:
+        output_netcdf_file = config['outputs']['output_filename']
+
+    nc_out = Dataset(output_netcdf_file, 'w', format='NETCDF4')
+    fsize = np.shape(np.asarray(wavenumber))[1]
+    nc_out.createDimension('wavenumber', fsize)
+    nc_out.createDimension('lat', lat.size)
+    nc_out.createDimension('lon', lon.size)
+
+    frequence_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber')
     frequence_out.units = "1/%s" % freq_unit
     frequence_out.axis = 'T'
-    frequence_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(array1 == 0, array1))
+    freq = np.ma.mean(np.ma.masked_invalid(np.ma.masked_where(np.asarray(wavenumber) == 0,
+                                                              np.asarray(wavenumber))), axis=0).filled(0.)
 
-    array2 = np.swapaxes(np.asarray(output_nb_segment).reshape((vlat.size, vlon.size)).T, 0, 1)
-    nb_segment_out = nc_out.createVariable('nb_segment', 'f8', ('y', 'x'))
+    frequence_out[:] = freq
+
+    data = np.asarray(nb_segment).reshape((lat.size, lon.size))
+    nb_segment_out = nc_out.createVariable('nb_segment', 'f8', ('lat', 'lon'))
     nb_segment_out.long_name = "number of segment used in spectral computation"
-    nb_segment_out[:, :] = array2
+    nb_segment_out[:, :] = np.ma.masked_where(data == 0., data)
 
-    array3 = np.swapaxes(np.asarray(output_effective_lat).reshape((vlat.size, vlon.size)).T, 0, 1)
-    lat_out = nc_out.createVariable('lat2D', 'f8', ('y', 'x'))
-    lat_out[:, :] = array3
+    lat_out = nc_out.createVariable('lat', 'f8', 'lat')
+    lat_out[:] = lat
+    lon_out = nc_out.createVariable('lon', 'f8', 'lon')
+    lon_out[:] = lon
 
-    array4 = np.swapaxes(np.asarray(output_effective_lon).reshape((vlat.size, vlon.size)).T, 0, 1)
-    lon_out = nc_out.createVariable('lon2D', 'f8', ('y', 'x'))
-    lon_out[:, :] = array4
-
-    lat_out2 = nc_out.createVariable('lat', 'f8', ('y',))
-    lat_out2[:] = array3[:, 0]
-
-    lon_out2 = nc_out.createVariable('lon', 'f8', ('x',))
-    lon_out2[:] = array4[0, :]
-
-    array5 = np.swapaxes(
-        np.asarray(output_mean_ps_sla_ref).reshape(
-            (vlat.size, vlon.size, np.shape(np.asarray(output_mean_ps_sla_ref))[1])).T, 1, 2)
-    spectrum_ref = nc_out.createVariable('spectrum_ref', 'f8', ('f', 'y', 'x'))
-    spectrum_ref.units = 'm2'
-    spectrum_ref.coordinates = "frequency lat lon"
-    spectrum_ref.long_name = "power spectrum reference field"
-    spectrum_ref[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(array5 == 0, array5))
-
-    array6 = np.swapaxes(
-        np.asarray(output_mean_psd_sla_ref).reshape(
-            (vlat.size, vlon.size, np.shape(np.asarray(output_mean_psd_sla_ref))[1])).T, 1, 2)
-    psd_ref = nc_out.createVariable('psd_ref', 'f8', ('f', 'y', 'x'))
+    data = np.transpose(np.asarray(psd_ref)).reshape((fsize, lat.size, lon.size))
+    psd_ref = nc_out.createVariable('psd_ref', 'f8', ('wavenumber', 'lat', 'lon'))
     psd_ref.units = 'm2/%s' % freq_unit
-    psd_ref.coordinates = "frequency lat lon"
+    psd_ref.coordinates = "freq lat lon"
     psd_ref.long_name = "power spectrum density reference field"
-    psd_ref[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(array6 == 0, array6))
+    psd_ref[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
 
-    array7 = np.swapaxes(
-        np.asarray(output_autocorrelation_distance).reshape(
-            (vlat.size, vlon.size, np.shape(np.asarray(output_autocorrelation_distance))[1])).T, 1, 2)
-    autocorrelation_distance = nc_out.createVariable('distance', 'f8', ('d', 'y', 'x'))
-    autocorrelation_distance.units = freq_unit
-    autocorrelation_distance.long_name = 'distance from origin autocorrelation function reference field'
-    autocorrelation_distance[:, :, :] = array7
-
-    array8 = np.swapaxes(
-        np.asarray(output_autocorrelation_ref).reshape(
-            (vlat.size, vlon.size, np.shape(np.asarray(output_autocorrelation_distance))[1])).T, 1, 2)
-    autocorrelation_ref = nc_out.createVariable('autocorrelation_ref', 'f8', ('d', 'y', 'x'))
-    autocorrelation_ref.coordinates = "distance lat lon"
-    autocorrelation_ref.long_name = "autocorrelation function reference field computed from power spectrum density"
-    autocorrelation_ref[:, :, :] = array8
-
-    array9 = np.swapaxes(np.asarray(output_autocorrelation_ref_zero_crossing).reshape((vlat.size, vlon.size)).T, 0, 1)
-    zero_crossing_ref = nc_out.createVariable('zero_crossing_ref', 'f8', ('y', 'x'))
-    zero_crossing_ref.coordinates = "lat lon"
-    zero_crossing_ref.units = freq_unit
-    zero_crossing_ref.long_name = "zero crossing autocorrelation function reference field"
-    zero_crossing_ref[:, :] = array9
-
-
-    nc_out.createDimension('fglob', output_global_mean_frequency.size)
-    global_frequence_out = nc_out.createVariable('global_mean_freq', 'f8', 'fglob')
-    global_frequence_out.units = "1/%s" % freq_unit
-    global_frequence_out[:] = np.ma.masked_invalid(
-            np.ma.masked_where(output_global_mean_frequency == 0, output_global_mean_frequency))
-    global_frequence_out.long_name = "global frequency vector"
-
-    global_ps_ref_out = nc_out.createVariable('global_mean_ps_ref', 'f8', 'fglob')
-    global_ps_ref_out.units = "m2"
-    global_ps_ref_out[:] = np.ma.masked_invalid(output_global_mean_ps_sla_ref)
-    global_ps_ref_out.long_name = "global power spectrum reference field"
-
-    global_psd_ref_out = nc_out.createVariable('global_mean_psd_ref', 'f8', 'fglob')
+    global_psd_ref_out = nc_out.createVariable('global_mean_psd_ref', 'f8', 'wavenumber')
     global_psd_ref_out.units = 'm2/%s' % freq_unit
-    global_psd_ref_out[:] = np.ma.masked_invalid(output_global_mean_psd_sla_ref)
+    global_psd_ref_out[:] = np.ma.masked_invalid(global_psd_ref)
     global_psd_ref_out.long_name = "global power spectrum density reference field"
 
-    if output_global_mean_psd_sla_study is not None:
-        global_ps_study_out = nc_out.createVariable('global_mean_ps_study', 'f8', 'fglob')
-        global_ps_study_out.units = "m2"
-        global_ps_study_out[:] = np.ma.masked_invalid(output_global_mean_ps_sla_study)
-        global_ps_study_out.long_name = "global power spectrum study field"
-
-        global_psd_study_out = nc_out.createVariable('global_mean_psd_study', 'f8', 'fglob')
+    if global_psd_study is not None:
+        global_psd_study_out = nc_out.createVariable('global_mean_psd_study', 'f8', 'wavenumber')
         global_psd_study_out.units = 'm2/%s' % freq_unit
-        global_psd_study_out[:] = np.ma.masked_invalid(output_global_mean_psd_sla_study)
+        global_psd_study_out[:] = np.ma.masked_invalid(global_psd_study)
         global_psd_study_out.long_name = "global power spectrum density study field"
 
-    if output_mean_ps_sla_study is not None:
-        array10 = np.swapaxes(
-            np.asarray(output_mean_ps_sla_study).reshape(
-                (vlat.size, vlon.size, np.shape(np.asarray(output_mean_ps_sla_study))[1])).T, 1, 2)
-        spectrum_study = nc_out.createVariable('spectrum_study', 'f8', ('f', 'y', 'x'))
-        spectrum_study.units = 'm2'
-        spectrum_study.coordinates = "frequency lat lon"
-        spectrum_study.long_name = "power spectrum study field"
-        spectrum_study[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(array10 == 0, array10))
-
-    if output_mean_psd_sla_study is not None:
-        array11 = np.swapaxes(
-            np.asarray(output_mean_psd_sla_study).reshape(
-                (vlat.size, vlon.size, np.shape(np.asarray(output_mean_psd_sla_study))[1])).T, 1, 2)
-        psd_study = nc_out.createVariable('psd_study', 'f8', ('f', 'y', 'x'))
+    if psd_study is not None:
+        data = np.transpose(np.asarray(psd_study)).reshape((fsize, lat.size, lon.size))
+        psd_study = nc_out.createVariable('psd_study', 'f8', ('wavenumber', 'lat', 'lon'))
         psd_study.units = 'm2/%s' % freq_unit
-        psd_study.coordinates = "frequency lat lon"
+        psd_study.coordinates = "freq lat lon"
         psd_study.long_name = "power spectrum density study field"
-        psd_study[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(array11 == 0, array11))
+        psd_study[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
 
-    if output_autocorrelation_study:
-        array12 = np.swapaxes(
-            np.asarray(output_autocorrelation_study).reshape(
-                (vlat.size, vlon.size, np.shape(np.asarray(output_autocorrelation_study))[1])).T, 1, 2)
-        autocorrelation_study = nc_out.createVariable('autocorrelation_study', 'f8', ('d', 'y', 'x'))
-        autocorrelation_study.coordinates = "distance lat lon"
-        autocorrelation_study.long_name = "autocorrelation function study field computed from power spectrum density"
-        autocorrelation_study[:, :, :] = array12
-
-    if output_autocorrelation_study_zero_crossing:
-        array13 = np.swapaxes(np.asarray(output_autocorrelation_study_zero_crossing).reshape((vlat.size, vlon.size)).T,
-                              0, 1)
-        zero_crossing_study = nc_out.createVariable('zero_crossing_study', 'f8', ('y', 'x'))
-        zero_crossing_study.coordinates = "lat lon"
-        zero_crossing_study.units = freq_unit
-        zero_crossing_study.long_name = "zero crossing autocorrelation function study field"
-        zero_crossing_study[:, :] = array13
-
-    if output_mean_ps_diff_sla_ref_sla_study is not None:
-        array14 = np.swapaxes(
-            np.asarray(output_mean_ps_diff_sla_ref_sla_study).reshape(
-                (vlat.size, vlon.size, np.shape(np.asarray(output_mean_ps_diff_sla_ref_sla_study))[1])).T, 1, 2)
-        spectrum_diff = nc_out.createVariable('spectrum_diff', 'f8', ('f', 'y', 'x'))
-        spectrum_diff.units = 'm2'
-        spectrum_diff.coordinates = "frequency lat lon"
-        spectrum_diff.long_name = "power spectrum of difference study minus reference field"
-        spectrum_diff[:, :, :] = array14
-
-    if output_mean_psd_diff_sla_ref_sla_study is not None:
-        array15 = np.swapaxes(
-            np.asarray(output_mean_psd_diff_sla_ref_sla_study).reshape(
-                (vlat.size, vlon.size, np.shape(np.asarray(output_mean_psd_diff_sla_ref_sla_study))[1])).T, 1, 2)
-        psd_diff = nc_out.createVariable('psd_diff', 'f8', ('f', 'y', 'x'))
+    if psd_diff_ref_study is not None:
+        data = np.transpose(np.asarray(psd_diff_ref_study)).reshape((fsize, lat.size, lon.size))
+        psd_diff = nc_out.createVariable('psd_diff', 'f8', ('wavenumber', 'lat', 'lon'))
         psd_diff.units = 'm2/%s' % freq_unit
-        psd_diff.coordinates = "frequency lat lon"
+        psd_diff.coordinates = "freq lat lon"
         psd_diff.long_name = "power spectrum density of difference study minus reference field"
-        psd_diff[:, :, :] = array15
+        psd_diff[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
 
-    if output_mean_coherence is not None:
-        array16 = np.swapaxes(
-            np.asarray(output_mean_coherence).reshape(
-                (vlat.size, vlon.size, np.shape(np.asarray(output_mean_coherence))[1])).T, 1, 2)
-        coherence_out = nc_out.createVariable('coherence', 'f8', ('f', 'y', 'x'))
-        coherence_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(array16 == 0, array16))
-        coherence_out.coordinates = "frequency lat lon"
+    if coherence is not None:
+        data = np.transpose(np.asarray(coherence)).reshape((fsize, lat.size, lon.size))
+        coherence_out = nc_out.createVariable('coherence', 'f8', ('wavenumber', 'lat', 'lon'))
+        coherence_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
+        coherence_out.coordinates = "freq lat lon"
         coherence_out.long_name = "magnitude squared coherence between reference and study fields"
 
-    if output_effective_resolution is not None:
-        array17 = np.swapaxes(np.asarray(output_effective_resolution).reshape((vlat.size, vlon.size)).T, 0, 1)
-        effective_resolution_out = nc_out.createVariable('effective_resolution', 'f8', ('y', 'x'))
-        effective_resolution_out.units = freq_unit
-        effective_resolution_out.coordinates = "lat lon"
-        effective_resolution_out.long_name = "effective resolution study field computed from " \
-                                             "magnitude squared coherence between reference and study fields"
-        effective_resolution_out.comment = 'effective resolution is the wavenumber where the ' \
-                                           'magnitude squared coherence = 0.5'
-        effective_resolution_out[:, :] = np.ma.masked_invalid(np.ma.masked_where(array17 == 0, array17))
-
-    if output_useful_resolution is not None:
-        array18 = np.swapaxes(np.asarray(output_useful_resolution).reshape((vlat.size, vlon.size)).T, 0, 1)
-        useful_resolution_out = nc_out.createVariable('useful_resolution', 'f8', ('y', 'x'))
-        useful_resolution_out.units = freq_unit
-        useful_resolution_out[:, :] = np.ma.masked_invalid(np.ma.masked_where(array18 == 0, array18))
-        useful_resolution_out.coordinates = "lat lon"
-        useful_resolution_out.long_name = "useful/available resolution study field computed from ratio " \
-                                          "between study and reference power spectrum"
-        useful_resolution_out.comment = "useful/available resolution is the wavenumber where the ratio = 0.5"
-
-    if output_cross_correlation is not None:
-        nc_out.createDimension('dc', np.shape(np.asarray(output_cross_correlation))[1])
-        array19 = np.swapaxes(
-            np.asarray(output_cross_correlation).reshape(
-                (vlat.size, vlon.size, np.shape(np.asarray(output_cross_correlation))[1])).T, 1, 2)
-        cross_correlation = nc_out.createVariable('cross_correlation', 'f8', ('dc', 'y', 'x'))
-        cross_correlation.units = ''
-        cross_correlation.coordinates = "segment_lenght lat lon"
-        cross_correlation.long_name = "squared cross_correlation"
-        cross_correlation[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(array19 == 0, array19))
+    if cross_spectrum is not None:
+        data = np.transpose(np.asarray(cross_spectrum)).reshape((fsize, lat.size, lon.size))
+        cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('wavenumber', 'lat', 'lon'))
+        cross_spectrum_real_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.real(data) == 0., np.real(data)))
+        cross_spectrum_real_out.coordinates = "freq lat lon"
+        cross_spectrum_real_out.long_name = "real part of cross_spectrum between reference and study fields"
+        cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('wavenumber', 'lat', 'lon'))
+        cross_spectrum_imag_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.imag(data) == 0., np.imag(data)))
+        cross_spectrum_imag_out.coordinates = "freq lat lon"
+        cross_spectrum_imag_out.long_name = "imaginary part of cross_spectrum between reference and study fields"
 
     nc_out.close()
 
 
-def write_netcdf_TG(filename, frequency_out, effective_resolution_out, useful_resolution_out,
-                    lat_out, lon_out,
-                    spectrum_TG_out, spectrum_SLA_at_TG,
-                    power_spectrum_TG_out, power_spectrum_SLA_at_TG,
-                    coherence_out):
+def write_netcdf_tide_tao(filename, wavenumber, lat, lon, psd_tg, psd_study, psd_diff_tg_study, coherence,
+                          cross_spectrum):
+    """
 
+    :param filename:
+    :param wavenumber:
+    :param lat:
+    :param lon:
+    :param psd_tg:
+    :param psd_study:
+    :param psd_diff_tg_study:
+    :param coherence:
+    :param cross_spectrum:
+    :return:
+    """
+
+    # sort sensor by latitude
+    lat_sorted_index = np.argsort(lat)
 
     nc_out = Dataset(filename, 'w', format='NETCDF4')
-    x = nc_out.createDimension('x', np.asarray(effective_resolution_out).size)
-    t = nc_out.createDimension('t', np.asarray(frequency_out)[0, :].size)
+    nc_out.createDimension('wavenumber', np.asarray(wavenumber)[1, :].size)
+    nc_out.createDimension('sensor', np.asarray(lat).size)
 
-    data_effective_resolution_out = nc_out.createVariable('effective_resolution', 'f8', 'x')
-    data_effective_resolution_out[:] = np.asarray(effective_resolution_out)
-    data_effective_resolution_out.units = 'days'
-    data_effective_resolution_out.longname = 'lenghtscale where spectral coherence = 0.5'
+    wavenumber_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber')
+    wavenumber_out[:] = np.asarray(wavenumber)[1, :]
 
-    data_useful_resolution_out = nc_out.createVariable('useful_resolution', 'f8', 'x')
-    data_useful_resolution_out[:] = np.asarray(useful_resolution_out)
-    data_useful_resolution_out.units = 'days'
-    data_useful_resolution_out.longname = 'lenghtscale where spectral ratio = 0.5'
+    lat_out = nc_out.createVariable('lat', 'f8', 'sensor')
+    lat_out[:] = np.asarray(lat)[lat_sorted_index]
+    lat_out.longname = 'latitude sensor'
 
-    data_lat_out = nc_out.createVariable('lat', 'f8', 'x')
-    data_lat_out[:] = np.asarray(lat_out)
-    data_lat_out.longname = 'latitude tide gauge'
+    lon_out = nc_out.createVariable('lon', 'f8', 'sensor')
+    lon_out[:] = np.asarray(lon)[lat_sorted_index]
+    lon_out.longname = 'longitude sensor'
 
-    data_lon_out = nc_out.createVariable('lon', 'f8', 'x')
-    data_lon_out[:] = np.asarray(lon_out)
-    data_lon_out.longname = 'longitude tide gauge'
+    psd_tg_out = nc_out.createVariable('psd_ref', 'f8', ('sensor', 'wavenumber'))
+    psd_tg_out[:, :] = np.asarray(psd_tg)[lat_sorted_index, :]
+    psd_tg_out.coordinates = "sensor freq"
+    psd_tg_out.long_name = "power spectrum density ref field"
 
-    data_spectrum_TG_out = nc_out.createVariable('spectrum_TG', 'f8', ('x', 't'))
-    data_spectrum_TG_out[:, :] = np.asarray(spectrum_TG_out)
+    psd_study_out = nc_out.createVariable('psd_study', 'f8', ('sensor', 'wavenumber'))
+    psd_study_out[:, :] = np.asarray(psd_study)[lat_sorted_index, :]
+    psd_study_out.coordinates = "sensor freq"
+    psd_study_out.long_name = "power spectrum density study field"
+    
+    psd_diff_study_tg_out = nc_out.createVariable('psd_diff', 'f8', ('sensor', 'wavenumber'))
+    psd_diff_study_tg_out[:, :] = np.asarray(psd_diff_tg_study)[lat_sorted_index, :]
+    psd_diff_study_tg_out.coordinates = "sensor freq"
+    psd_diff_study_tg_out.long_name = "power spectrum density of difference study minus reference field"
 
-    data_spectrum_SLA_at_TG = nc_out.createVariable('spectrum_alti', 'f8', ('x', 't'))
-    data_spectrum_SLA_at_TG[:, :] = np.asarray(spectrum_SLA_at_TG)
+    coherence_out = nc_out.createVariable('coherence', 'f8', ('sensor', 'wavenumber'))
+    coherence_out[:, :] = np.asarray(coherence)[lat_sorted_index, :]
+    coherence_out.coordinates = "sensor freq"
+    coherence_out.long_name = "magnitude squared coherence between reference and study fields"
 
-    data_power_spectrum_TG_out = nc_out.createVariable('power_spectrum_TG', 'f8', ('x', 't'))
-    data_power_spectrum_TG_out[:, :] = np.asarray(power_spectrum_TG_out)
+    cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('sensor', 'wavenumber'))
+    cross_spectrum_real_out[:, :] = np.real(np.asarray(cross_spectrum))[lat_sorted_index, :]
+    cross_spectrum_real_out.coordinates = "freq lat lon"
+    cross_spectrum_real_out.long_name = "real part cross_spectrum between reference and study fields"
 
-    data_power_spectrum_SLA_at_TG = nc_out.createVariable('power_spectrum_alti', 'f8', ('x', 't'))
-    data_power_spectrum_SLA_at_TG[:, :] = np.asarray(power_spectrum_SLA_at_TG)
-
-    data_coherency_out = nc_out.createVariable('coherence', 'f8', ('x', 't'))
-    data_coherency_out[:, :] = np.asarray(coherence_out)
-
-    data_frequency_out = nc_out.createVariable('frequency', 'f8', ('x', 't'))
-    data_frequency_out[:, :] = np.asarray(frequency_out)
+    cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('sensor', 'wavenumber'))
+    cross_spectrum_imag_out[:, :] = np.imag(np.asarray(cross_spectrum))[lat_sorted_index, :]
+    cross_spectrum_imag_out.coordinates = "freq lat lon"
+    cross_spectrum_imag_out.long_name = "imaginary part cross_spectrum between reference and study fields"
 
     nc_out.close()
 
 
-def write_netcdf_TAO(filename, frequency_out, effective_resolution_out, useful_resolution_out,
-                    lat_out, lon_out,
-                    spectrum_TAO_out, spectrum_SSH_at_TAO,
-                    power_spectrum_TAO_out, power_spectrum_SSH_at_TAO,
-                    coherence_out):
+def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_study=None, psd_diff_ref_study=None,
+                                 coherence=None, cross_spectrum=None):
+    """
 
+    :param config:
+    :param wavenumber:
+    :param lat:
+    :param lon:
+    :param psd_ref:
+    :param psd_study:
+    :param psd_diff_ref_study:
+    :param coherence:
+    :param cross_spectrum:
+    :return:
+    """
 
-    nc_out = Dataset(filename, 'w', format='NETCDF4')
-    x = nc_out.createDimension('x', np.asarray(effective_resolution_out).size)
-    t = nc_out.createDimension('t', np.asarray(frequency_out)[0, :].size)
+    output_netcdf_file = config['outputs']['output_filename_t_direction']
+    freq_unit = 'days'
 
-    data_effective_resolution_out = nc_out.createVariable('effective_resolution', 'f8', 'x')
-    data_effective_resolution_out[:] = np.asarray(effective_resolution_out)
-    data_effective_resolution_out.units = 'days'
-    data_effective_resolution_out.longname = 'lenghtscale where spectral coherence = 0.5'
+    print(wavenumber)
 
-    data_useful_resolution_out = nc_out.createVariable('useful_resolution', 'f8', 'x')
-    data_useful_resolution_out[:] = np.asarray(useful_resolution_out)
-    data_useful_resolution_out.units = 'days'
-    data_useful_resolution_out.longname = 'lenghtscale where spectral ratio = 0.5'
+    nc_out = Dataset(output_netcdf_file, 'w', format='NETCDF4')
+    fsize = np.shape(np.asarray(wavenumber))[0]
+    nc_out.createDimension('wavenumber', fsize)
+    nc_out.createDimension('lat', lat.size)
+    nc_out.createDimension('lon', lon.size)
 
-    data_lat_out = nc_out.createVariable('lat', 'f8', 'x')
-    data_lat_out[:] = np.asarray(lat_out)
-    data_lat_out.longname = 'latitude TAO'
+    frequence_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber')
+    frequence_out.units = "1/%s" % freq_unit
+    frequence_out.axis = 'T'
+    freq = np.ma.masked_invalid(wavenumber)
 
-    data_lon_out = nc_out.createVariable('lon', 'f8', 'x')
-    data_lon_out[:] = np.asarray(lon_out)
-    data_lon_out.longname = 'longitude TAO'
+    frequence_out[:] = freq
 
-    data_spectrum_TG_out = nc_out.createVariable('spectrum_TAO', 'f8', ('x', 't'))
-    data_spectrum_TG_out[:, :] = np.asarray(spectrum_TAO_out)
+    lat_out = nc_out.createVariable('lat', 'f8', 'lat')
+    lat_out[:] = lat
+    lon_out = nc_out.createVariable('lon', 'f8', 'lon')
+    lon_out[:] = lon
 
-    data_spectrum_SLA_at_TG = nc_out.createVariable('spectrum_alti', 'f8', ('x', 't'))
-    data_spectrum_SLA_at_TG[:, :] = np.asarray(spectrum_SSH_at_TAO)
+    data = np.transpose(np.asarray(psd_ref)).reshape((fsize, lat.size, lon.size))
+    psd_ref = nc_out.createVariable('psd_ref', 'f8', ('wavenumber', 'lat', 'lon'))
+    psd_ref.units = 'm2/%s' % freq_unit
+    psd_ref.coordinates = "freq lat lon"
+    psd_ref.long_name = "power spectrum density reference field"
+    psd_ref[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
 
-    data_power_spectrum_TG_out = nc_out.createVariable('power_spectrum_TAO', 'f8', ('x', 't'))
-    data_power_spectrum_TG_out[:, :] = np.asarray(power_spectrum_TAO_out)
+    if psd_study is not None:
+        data = np.transpose(np.asarray(psd_study)).reshape((fsize, lat.size, lon.size))
+        psd_study = nc_out.createVariable('psd_study', 'f8', ('wavenumber', 'lat', 'lon'))
+        psd_study.units = 'm2/%s' % freq_unit
+        psd_study.coordinates = "freq lat lon"
+        psd_study.long_name = "power spectrum density study field"
+        psd_study[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
 
-    data_power_spectrum_SLA_at_TG = nc_out.createVariable('power_spectrum_alti', 'f8', ('x', 't'))
-    data_power_spectrum_SLA_at_TG[:, :] = np.asarray(power_spectrum_SSH_at_TAO)
+    if psd_diff_ref_study is not None:
+        data = np.transpose(np.asarray(psd_diff_ref_study)).reshape((fsize, lat.size, lon.size))
+        psd_diff = nc_out.createVariable('psd_diff', 'f8', ('wavenumber', 'lat', 'lon'))
+        psd_diff.units = 'm2/%s' % freq_unit
+        psd_diff.coordinates = "freq lat lon"
+        psd_diff.long_name = "power spectrum density of difference study minus reference field"
+        psd_diff[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
 
-    data_coherency_out = nc_out.createVariable('coherence', 'f8', ('x', 't'))
-    data_coherency_out[:, :] = np.asarray(coherence_out)
+    if coherence is not None:
+        data = np.transpose(np.asarray(coherence)).reshape((fsize, lat.size, lon.size))
+        coherence_out = nc_out.createVariable('coherence', 'f8', ('wavenumber', 'lat', 'lon'))
+        coherence_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
+        coherence_out.coordinates = "freq lat lon"
+        coherence_out.long_name = "magnitude squared coherence between reference and study fields"
 
-    data_frequency_out = nc_out.createVariable('frequency', 'f8', ('x', 't'))
-    data_frequency_out[:, :] = np.asarray(frequency_out)
+    if cross_spectrum is not None:
+        data = np.transpose(np.asarray(cross_spectrum)).reshape((fsize, lat.size, lon.size))
+        cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('wavenumber', 'lat', 'lon'))
+        cross_spectrum_real_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.real(data) == 0., np.real(data)))
+        cross_spectrum_real_out.coordinates = "freq lat lon"
+        cross_spectrum_real_out.long_name = "real part of cross_spectrum between reference and study fields"
+        cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('wavenumber', 'lat', 'lon'))
+        cross_spectrum_imag_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.imag(data) == 0., np.imag(data)))
+        cross_spectrum_imag_out.coordinates = "freq lat lon"
+        cross_spectrum_imag_out.long_name = "imaginary part of cross_spectrum between reference and study fields"
 
     nc_out.close()

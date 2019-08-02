@@ -2,16 +2,18 @@
 inputs:
    # input_file_directory: folder containing SLA from tide gauge and CMEMS maps (one file per TG)
    input_file_directory: ./inputs/tide_gauges/
+   input_file_pattern: 'SLA*.nc'
    
 properties:
     # corr_coef: minimum correlation criterion threshold between SLA map and SLA TG to perform analysis
-    corr_coef: 0.
+    corr_coef: 0.8
 
     spectral_parameters:
         # lenght_scale: segment lenght in days to consider in the spectral subsampling (ex: 100) 
         # delta_t: temporal sampling input
         lenght_scale: 100.
         delta_t: 1.
+        segment_overlapping: 0.25
         
 outputs:
     # output_filename: output filename spectral computation

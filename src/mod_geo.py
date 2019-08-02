@@ -1,6 +1,9 @@
 import numpy as np
 from math import sqrt, cos, sin, asin, radians
-from mpl_toolkits.basemap import Basemap
+import cartopy
+import cartopy.crs as ccrs
+from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
+
 import matplotlib.pylab as plt
 
 from mod_constant import *
@@ -100,8 +103,7 @@ def haversine(lon1, lat1, lon2, lat2):
     return cc1 * earth_radius
 
 
-def selection_in_latlonbox(lon_array, lat_array, lon_min, lon_max, lat_min, lat_max,
-                           greenwhich_start=False, debug=False):
+def selection_in_latlonbox(lon_array, lat_array, lon_min, lon_max, lat_min, lat_max, debug=False):
     """
     Selection of segment within a box define by lon_min, lon_max, lat_min, lat_max
     :param lon_array:
@@ -110,57 +112,38 @@ def selection_in_latlonbox(lon_array, lat_array, lon_min, lon_max, lat_min, lat_
     :param lon_max:
     :param lat_min:
     :param lat_max:
-    :param greenwhich_start:
     :param debug:
     :return:
     """
 
     selected_lat_index = np.where(np.logical_and(lat_array >= lat_min, lat_array <= lat_max))[0]
 
-    if greenwhich_start:
-
-        if lon_min < 0.:
-            selected_lon_index1 = np.where(np.logical_and(lon_array >= 0, lon_array <= lon_max))[0]
-            selected_lon_index2 = np.where(np.logical_and(lon_array >= lon_min + 360., lon_array <= 360))[0]
-            selected_lon_index = np.concatenate((selected_lon_index1, selected_lon_index2))
-        elif lon_max > 360.:
-            selected_lon_index1 = np.where(np.logical_and(lon_array >= lon_min, lon_array <= 360.))[0]
-            selected_lon_index2 = np.where(np.logical_and(lon_array >= 0., lon_array <= lon_max - 360))[0]
-            selected_lon_index = np.concatenate((selected_lon_index1, selected_lon_index2))
-        else:
-            selected_lon_index = np.where(np.logical_and(lon_array >= lon_min, lon_array <= lon_max))[0]
-
+    if (lon_min < 0.) and (lon_max > 0.):
+        selected_lon_index = np.where(np.logical_or(lon_array >= lon_min + 360., lon_array <= lon_max))[0]
+    elif (lon_min > 0.) and (lon_max > 360.):
+        selected_lon_index = np.where(np.logical_or(lon_array >= lon_min, lon_array <= lon_max - 360.))[0]
     else:
-
-        if lon_min < -180.:
-            selected_lon_index1 = np.where(np.logical_and(lon_array >= -180, lon_array <= lon_max))[0]
-            selected_lon_index2 = np.where(np.logical_and(lon_array >= lon_min + 360., lon_array <= 180.))[0]
-            selected_lon_index = np.concatenate((selected_lon_index1, selected_lon_index2))
-        elif lon_max > 180.:
-            selected_lon_index1 = np.where(np.logical_and(lon_array >= lon_min, lon_array <= 180.))[0]
-            selected_lon_index2 = np.where(np.logical_and(lon_array >= -180., lon_array <= lon_max - 360))[0]
-            selected_lon_index = np.concatenate((selected_lon_index1, selected_lon_index2))
-        else:
-            selected_lon_index = np.where(np.logical_and(lon_array >= lon_min, lon_array <= lon_max))[0]
+        selected_lon_index = np.where(np.logical_and(lon_array >= lon_min, lon_array <= lon_max))[0]
 
     selected_index = np.intersect1d(selected_lon_index, selected_lat_index)
 
     if debug:
         plt.figure()
-        bmap = Basemap(
-            projection='cyl', resolution='l', llcrnrlat=-90, urcrnrlat=90, llcrnrlon=-180,
-            urcrnrlon=360)
-        bmap.fillcontinents(color='grey', lake_color='white')
-        bmap.drawcoastlines()
-        bmap.drawparallels(np.arange(-90, 90, 30), labels=[1, 0, 0, 0], fontsize=15, dashes=[4, 4],
-                           linewidth=0.25)
-        bmap.drawmeridians(np.arange(-200, 360, 60), labels=[0, 0, 0, 1], fontsize=15,
-                           dashes=[4, 4],
-                           linewidth=0.25)
-        x, y = bmap(lon_array[selected_index], lat_array[selected_index])
-        bmap.scatter(x, y, s=0.1, marker="o", color='r')
-        plt.title("Point selected to estimate main value at lon=%s and lat =%s " %
-                  (str(0.5*(lon_min+lon_max)), str(0.5*(lat_min+lat_max))))
+        projection = ccrs.PlateCarree()
+        ax = plt.axes(projection=projection)
+        ax.coastlines()
+        ax.add_feature(cartopy.feature.OCEAN)
+        ax.add_feature(cartopy.feature.LAND)
+        ax.set_xticks(np.linspace(np.min(lon_array), np.max(lon_array), 5), crs=projection)
+        ax.set_yticks(np.linspace(np.min(lat_array), np.max(lat_array), 5), crs=projection)
+        lon_formatter = LongitudeFormatter(zero_direction_label=True)
+        lat_formatter = LatitudeFormatter()
+        ax.xaxis.set_major_formatter(lon_formatter)
+        ax.yaxis.set_major_formatter(lat_formatter)
+        ax.scatter(lon_array[selected_index], lat_array[selected_index],
+                   s=40, marker="x", color='r', transform=projection)
+        plt.title("Point selected to estimate main value at lon=%s and lat =%s " % (
+                  str(0.5 * (lon_min + lon_max)), str(0.5 * (lat_min + lat_max))))
         plt.show()
         # plt.savefig('%s_%04d.png' % ("box_selection", nb_fig_selection))
         # plt.close()

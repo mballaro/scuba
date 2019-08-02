@@ -40,11 +40,11 @@ def edit_bad_velocity(netcdf_file):
     return time_ok, lon_ok, lat_ok, sla_ok
 
 
-def edit_coastal_data(sla, lon_along_track, lat_along_track, time_along_track,
+def edit_coastal_data(field, lon_along_track, lat_along_track, time_along_track,
                       file_coastal_distance, coastal_criteria, flag_roll):
     """
     Edit coastal along-track dta based on the coastal distance file
-    :param sla:
+    :param field:
     :param lon_along_track:
     :param lat_along_track:
     :param time_along_track:
@@ -59,7 +59,7 @@ def edit_coastal_data(sla, lon_along_track, lat_along_track, time_along_track,
     distance = ncfile.variables['distance'][:, :]
     lon_distance = ncfile.variables['lon'][:]
     lat_distance = ncfile.variables['lat'][:]
-    coastal_flag = np.zeros((len(sla)))
+    coastal_flag = np.zeros((len(field)))
     ncfile.close()
 
     # For Med Sea
@@ -67,7 +67,7 @@ def edit_coastal_data(sla, lon_along_track, lat_along_track, time_along_track,
         lon_distance = np.where(lon_distance >= 180, lon_distance - 360, lon_distance)
 
     # Prepare mask for coastal region
-    for time_index in range(sla.size):
+    for time_index in range(field.size):
         # nearest lon_distance from lon_along_track
         ii_nearest = find_nearest_index(lon_distance, lon_along_track[time_index])
         # nearest lat_distance from lat_along_track
@@ -76,9 +76,9 @@ def edit_coastal_data(sla, lon_along_track, lat_along_track, time_along_track,
         if distance[jj_nearest, ii_nearest] > coastal_criteria:
             coastal_flag[time_index] = 1.0
 
-    edited_sla = np.ma.compressed(np.ma.masked_where(coastal_flag == 0., sla))
+    edited_field = np.ma.compressed(np.ma.masked_where(coastal_flag == 0., field))
     edited_lon_along_track = np.ma.compressed(np.ma.masked_where(coastal_flag == 0., lon_along_track))
     edited_lat_along_track = np.ma.compressed(np.ma.masked_where(coastal_flag == 0., lat_along_track))
     edited_time_along_track = np.ma.compressed(np.ma.masked_where(coastal_flag == 0., time_along_track))
 
-    return edited_sla, edited_time_along_track, edited_lon_along_track, edited_lat_along_track
+    return edited_field, edited_time_along_track, edited_lon_along_track, edited_lat_along_track

@@ -35,8 +35,10 @@ flag_reference_only = YAML['properties']['spectral_parameters']['flag_reference_
 
 # Read reference input
 logging.info("start reading alongtrack")
-if YAML['inputs']['ref_field_type_CLS']:
-    ssh_alongtrack, time_alongtrack, lon_alongtrack, lat_alongtrack = read_along_track_cls(YAML)
+if YAML['inputs']['ref_field_type_CLS'] == 'residus':
+    ssh_alongtrack, time_alongtrack, lon_alongtrack, lat_alongtrack = read_residus_cls(YAML)
+elif YAML['inputs']['ref_field_type_CLS'] == 'table':
+    ssh_alongtrack, time_alongtrack, lon_alongtrack, lat_alongtrack = read_table_cls(YAML)
 else:
     ssh_alongtrack, time_alongtrack, lon_alongtrack, lat_alongtrack = read_along_track(YAML)
 
@@ -93,13 +95,18 @@ else:
     logging.info("end map interpolation")
 
     # Remove bad values that appear on MSLA after interpolation
-    ssh_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., ssh_alongtrack))
-    lon_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., lon_alongtrack))
-    lat_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., lat_alongtrack))
-    time_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., time_alongtrack))
-    ssh_map_interpolated = np.ma.compressed(np.ma.masked_where(np.abs(ssh_map_interpolated) > 10.,
-                                                               ssh_map_interpolated))
+    ssh_alongtrack = np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., ssh_alongtrack)
+    lon_alongtrack = np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., lon_alongtrack)
+    lat_alongtrack = np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., lat_alongtrack)
+    time_alongtrack = np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., time_alongtrack)
+    ssh_map_interpolated = np.ma.masked_where(np.abs(ssh_map_interpolated) > 10., ssh_map_interpolated)
 
+    lon_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_alongtrack) > 10., lon_alongtrack))
+    lat_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_alongtrack) > 10., lat_alongtrack))
+    time_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_alongtrack) > 10., time_alongtrack))
+    ssh_map_interpolated = np.ma.compressed(np.ma.masked_where(np.abs(ssh_alongtrack) > 10., ssh_map_interpolated))
+    ssh_alongtrack = np.ma.compressed(np.ma.masked_where(np.abs(ssh_alongtrack) > 10., ssh_alongtrack))
+    
     debug = False
     if debug:
         plt.scatter(time_alongtrack, ssh_alongtrack, color='k', label="Independent along-track", lw=2)

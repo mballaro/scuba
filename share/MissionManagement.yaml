@@ -56,6 +56,12 @@ S3A:
    DELTA_T: 1.0
    VELOCITY: 6.70
 
+
+# Sentinel-3
+S3B:
+   DELTA_T: 1.0
+   VELOCITY: 6.70
+   
 # Topex/Poseidon new orbit
 TPN:
    DELTA_T: 1.07858

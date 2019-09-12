@@ -95,7 +95,7 @@ def read_grid(config, case):
         lon = final_lon
 
     ssh = np.ma.masked_invalid(ssh)
-    ssh = np.ma.masked_outside(ssh, -1000, 1000)
+    ssh = np.ma.masked_outside(ssh, -10, 10)
 
     return ssh, time, lon, lat, delta_lon
 
@@ -164,7 +164,7 @@ def read_along_track(config):
     return field, time, lon, lat
 
 
-def read_along_track_cls(config):
+def read_residus_cls(config):
     """
 
     :param config:
@@ -235,6 +235,84 @@ def read_along_track_cls(config):
                                                   config['properties']['coastal_criteria'],
                                                   config['properties']['study_area']['flag_roll'])
         print("end coastal editing", str(datetime.datetime.now()))
+
+    return field, time, lon, lat
+
+
+def read_table_cls(config):
+    """
+
+    :param config:
+    :return:
+    """
+
+    buffer_zone = np.int(0.01 * config['properties']['spectral_parameters']['lenght_scale'])
+    study_lon_min = config['properties']['study_area']['llcrnrlon'] - buffer_zone
+    study_lon_max = config['properties']['study_area']['urcrnrlon'] + buffer_zone
+    study_lat_min = config['properties']['study_area']['llcrnrlat'] - buffer_zone
+    study_lat_max = config['properties']['study_area']['urcrnrlat'] + buffer_zone
+    start = datetime.datetime.strptime(str(config['properties']['time_window']['YYYYMMDD_min']), '%Y%m%d')
+    end = datetime.datetime.strptime(str(config['properties']['time_window']['YYYYMMDD_max']), '%Y%m%d')
+    study_time_min = int(date2num(start, units="days since 1950-01-01", calendar='standard'))
+    study_time_max = int(date2num(end, units="days since 1950-01-01", calendar='standard'))
+
+    import octant.data.table
+    from octant.date import Datetime
+
+    table_name = config['inputs']['input_file_reference']    # "TABLE_L2P_DT_OCEAN_AL"
+
+    table = octant.data.table.TableMeasure(table_name, mode='r', mask_default=True)
+
+    # for field in table.fields:
+    #     print("Field(s): %s" % (field))
+
+    start = Datetime.fromjulianday(study_time_min)
+    end = Datetime.fromjulianday(study_time_max)
+
+    table_lon = table.read_values(["LONGITUDE"], start, end)
+    table_lat = table.read_values(["LATITUDE"], start, end)
+    table_sla = table.read_values(["SEA_LEVEL_ANOMALY"], start, end)
+    table.close()
+
+    lon = table_lon["LONGITUDE"]
+    lat = table_lat["LATITUDE"]
+    sla = table_sla["SEA_LEVEL_ANOMALY"]
+
+    sla = np.ma.masked_outside(sla, -10., 10.).filled(np.nan)
+
+    lon = np.ma.masked_array(lon, mask=np.isnan(sla)).compressed()
+    lat = np.ma.masked_array(lat, mask=np.isnan(sla)).compressed()
+    time = np.ma.masked_array(table_sla["time"], mask=np.isnan(sla)).compressed()
+    field = np.ma.masked_array(sla, mask=np.isnan(sla)).compressed()
+
+    for ii in range(time.size):
+        time[ii] = Datetime.fromjulianday(time[ii]).julianday(dtype=float)
+
+    # For Med Sea (a verifier)
+    if config['properties']['study_area']['flag_roll']:
+        lon = np.where(lon >= 180, lon - 360, lon)
+
+    inds = np.where((lon >= study_lon_min) & (lon <= study_lon_max) &
+                    (lat >= study_lat_min) & (lat <= study_lat_max))[0]
+
+    lon = lon[inds]
+    lat = lat[inds]
+    time = time[inds]
+    field = field[inds]
+    ref_field_scale_factor = config['inputs']['ref_field_scale_factor']
+    field = ref_field_scale_factor * field
+    print(np.shape(lon), np.shape(lat), np.shape(time), np.shape(field))
+    print(np.min(field), np.max(field))
+    # Edit coastal value
+    if config['properties']['flag_edit_coastal']:
+        print("start coastal editing", str(datetime.datetime.now()))
+        field, time, lon, lat = edit_coastal_data(field, lon, lat, time,
+                                                  config['properties']['file_coastal_distance'],
+                                                  config['properties']['coastal_criteria'],
+                                                  config['properties']['study_area']['flag_roll'])
+        print("end coastal editing", str(datetime.datetime.now()))
+
+    print(np.shape(lon), np.shape(lat), np.shape(time), np.shape(field))
 
     return field, time, lon, lat
 
@@ -660,5 +738,74 @@ def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_stud
         cross_spectrum_imag_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.imag(data) == 0., np.imag(data)))
         cross_spectrum_imag_out.coordinates = "freq lat lon"
         cross_spectrum_imag_out.long_name = "imaginary part of cross_spectrum between reference and study fields"
+
+    nc_out.close()
+
+
+def write_netcdf_stat_output(config, nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue):
+    """
+
+    """
+
+    study_lon_min = config['properties']['study_area']['llcrnrlon']
+    study_lon_max = config['properties']['study_area']['urcrnrlon']
+    study_lat_min = config['properties']['study_area']['llcrnrlat']
+    study_lat_max = config['properties']['study_area']['urcrnrlat']
+    lat = np.arange(study_lat_min, study_lat_max, config['outputs']['output_lat_resolution'])
+    lon = np.arange(study_lon_min, study_lon_max, config['outputs']['output_lon_resolution'])
+    output_netcdf_file = config['outputs']['output_filename']
+
+    nc_out = Dataset(output_netcdf_file, 'w', format='NETCDF4')
+    nc_out.createDimension('lat', lat.size)
+    nc_out.createDimension('lon', lon.size)
+
+    lat_out = nc_out.createVariable('lat', 'f8', 'lat')
+    lat_out[:] = lat
+    lon_out = nc_out.createVariable('lon', 'f8', 'lon')
+    lon_out[:] = lon
+
+    nobs_out = nc_out.createVariable('nobs', 'i4', ('lat', 'lon'))
+    nobs_out.long_name = "number of observation"
+    nobs_out[:, :] = np.ma.masked_where(nobs == 0, nobs)
+
+    min_out = nc_out.createVariable('min', 'f8', ('lat', 'lon'))
+    min_out.long_name = "minimum value"
+    min_out[:, :] = np.ma.masked_where(min == 0., min)
+
+    max_out = nc_out.createVariable('max', 'f8', ('lat', 'lon'))
+    max_out.long_name = "maximum value"
+    max_out[:, :] = np.ma.masked_where(max == 0., max)
+
+    mean_out = nc_out.createVariable('mean', 'f8', ('lat', 'lon'))
+    mean_out.long_name = "mean value"
+    mean_out[:, :] = np.ma.masked_where(mean == 0., mean)
+
+    variance_out = nc_out.createVariable('variance', 'f8', ('lat', 'lon'))
+    variance_out.long_name = "variance value"
+    variance_out[:, :] = np.ma.masked_where(variance == 0., variance)
+
+    skewness_out = nc_out.createVariable('skewness', 'f8', ('lat', 'lon'))
+    skewness_out.long_name = "skewness value"
+    skewness_out[:, :] = np.ma.masked_where(skewness == 0., skewness)
+
+    kurtosis_out = nc_out.createVariable('kurtosis', 'f8', ('lat', 'lon'))
+    kurtosis_out.long_name = "kurtosis value"
+    kurtosis_out[:, :] = np.ma.masked_where(kurtosis == 0., kurtosis)
+
+    rmse_out = nc_out.createVariable('rmse', 'f8', ('lat', 'lon'))
+    rmse_out.long_name = "mean square error value"
+    rmse_out[:, :] = np.ma.masked_where(rmse == 0., rmse)
+
+    mae_out = nc_out.createVariable('mae', 'f8', ('lat', 'lon'))
+    mae_out.long_name = "mean absolute error value"
+    mae_out[:, :] = np.ma.masked_where(mae == 0., mae)
+
+    correlation_out = nc_out.createVariable('correlation', 'f8', ('lat', 'lon'))
+    correlation_out.long_name = "correlation value"
+    correlation_out[:, :] = np.ma.masked_where(correlation == 0., correlation)
+
+    pvalue_out = nc_out.createVariable('pvalue', 'f8', ('lat', 'lon'))
+    pvalue_out.long_name = "pvalue correlation"
+    pvalue_out[:, :] = np.ma.masked_where(pvalue == 0., pvalue)
 
     nc_out.close()

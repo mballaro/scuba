@@ -139,11 +139,11 @@ def onclick(event):
     if event.button == 1 and event.inaxes and toolbar.mode == '':
         # global indexx, indexy
         indexx, indexy = event.xdata, event.ydata
-        print ' '
-        print 'lon = ', indexx, ';', 'lat = ', indexy
+        print(' ')
+        print('lon = ', indexx, ';', 'lat = ', indexy)
         plt_spectral_analysis(indexx, indexy)
     else:
-        print 'Clicked ouside axes bounds but inside plot window \n'
+        print('Clicked ouside axes bounds but inside plot window \n')
 
 
 fig, ax = plt.subplots()

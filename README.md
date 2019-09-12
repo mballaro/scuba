@@ -1,7 +1,7 @@
 
 ![SCUBA Logo](./share/scuba_files/logo.png)
 
-SCUBA performs spectral analysis of along-track and gridded dataset, as well as spectral statistical comparison between two fields (e.g., along-track vs grid, grid vs grid).
+SCUBA performs spectral/statistical analysis of along-track and gridded dataset, as well as spectral statistical comparison between two fields (e.g., along-track vs grid, grid vs grid).
 
 # Table of contents
 <!--ts-->

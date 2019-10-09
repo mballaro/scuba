@@ -742,7 +742,8 @@ def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_stud
     nc_out.close()
 
 
-def write_netcdf_stat_output(config, nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue):
+def write_netcdf_stat_output(config, nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue,
+                             variance_ref, variance_study):
     """
 
     """
@@ -807,5 +808,13 @@ def write_netcdf_stat_output(config, nobs, min, max, mean, variance, skewness, k
     pvalue_out = nc_out.createVariable('pvalue', 'f8', ('lat', 'lon'))
     pvalue_out.long_name = "pvalue correlation"
     pvalue_out[:, :] = np.ma.masked_where(pvalue == 0., pvalue)
+
+    variance_ref_out = nc_out.createVariable('variance_ref', 'f8', ('lat', 'lon'))
+    variance_ref_out.long_name = "variance reference field"
+    variance_ref_out[:, :] = np.ma.masked_where(variance_ref == 0., variance_ref)
+
+    variance_study_out = nc_out.createVariable('variance_study', 'f8', ('lat', 'lon'))
+    variance_study_out.long_name = "variance value"
+    variance_study_out[:, :] = np.ma.masked_where(variance_study == 0., variance_study)
 
     nc_out.close()

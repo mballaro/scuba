@@ -52,7 +52,7 @@ properties:
     filtering:
         # filter_type: bandpass, lowpass, highpass, None (if none the data are not filtered before statistical computation)
         # lenght_scale in km, example: [65., 500.]
-        filter_type: bandpass
+        filter_type: none #bandpass
         length_scale: [65., 500.]
 
     spectral_parameters:
@@ -75,5 +75,5 @@ outputs:
     output_lon_resolution: 1.
     output_lat_resolution: 1.
     output_segment_filename: segment.nc
-    output_filename: stats_map_alongtrack_65-500km.nc
+    output_filename: stats_map_alongtrack.nc #_65-500km.nc
 

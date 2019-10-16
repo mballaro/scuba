@@ -450,25 +450,25 @@ def write_segment(config, lat_segment, lon_segment, sla_segment, resolution, res
     nc_out.createDimension('nb_segment', nb_segment)
     nc_out.createDimension('resolution', 1)
 
-    lon_out = nc_out.createVariable('lon', 'f8', 'nb_segment')
+    lon_out = nc_out.createVariable('lon', 'f8', 'nb_segment', zlib=True)
     lon_out[:] = np.asarray(lon_segment)
     lon_out.longname = 'longitude segment center'
 
-    lat_out = nc_out.createVariable('lat', 'f8', 'nb_segment')
+    lat_out = nc_out.createVariable('lat', 'f8', 'nb_segment', zlib=True)
     lat_out[:] = np.asarray(lat_segment)
     lat_out.longname = 'latitude segment center'
 
-    segment_out = nc_out.createVariable('sla_segment', 'f8', ('nb_segment', 'segment_size'))
+    segment_out = nc_out.createVariable('sla_segment', 'f8', ('nb_segment', 'segment_size'), zlib=True)
     
     segment_out[:, :] = np.asarray(sla_segment)
     segment_out.longname = 'array of segments'
 
     if segment_study is not None:
-        segment_study_out = nc_out.createVariable('sla_study_segment', 'f8', ('nb_segment', 'segment_size'))
+        segment_study_out = nc_out.createVariable('sla_study_segment', 'f8', ('nb_segment', 'segment_size'), zlib=True)
         segment_study_out[:, :] = np.asarray(segment_study)
         segment_study_out.longname = 'array of study segments'
 
-    segment_resolution = nc_out.createVariable('resolution', 'f8', 'resolution')
+    segment_resolution = nc_out.createVariable('resolution', 'f8', 'resolution', zlib=True)
     segment_resolution[:] = resolution
     segment_resolution.longname = 'resolution of segments'
     segment_resolution.units = resolution_units
@@ -519,7 +519,7 @@ def write_netcdf_output(config, wavenumber, nb_segment, freq_unit, psd_ref, glob
     nc_out.createDimension('lat', lat.size)
     nc_out.createDimension('lon', lon.size)
 
-    frequence_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber')
+    frequence_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber', zlib=True)
     frequence_out.units = "1/%s" % freq_unit
     frequence_out.axis = 'T'
     freq = np.ma.mean(np.ma.masked_invalid(np.ma.masked_where(np.asarray(wavenumber) == 0,
@@ -528,7 +528,7 @@ def write_netcdf_output(config, wavenumber, nb_segment, freq_unit, psd_ref, glob
     frequence_out[:] = freq
 
     data = np.asarray(nb_segment).reshape((lat.size, lon.size))
-    nb_segment_out = nc_out.createVariable('nb_segment', 'f8', ('lat', 'lon'))
+    nb_segment_out = nc_out.createVariable('nb_segment', 'f8', ('lat', 'lon'), zlib=True)
     nb_segment_out.long_name = "number of segment used in spectral computation"
     nb_segment_out[:, :] = np.ma.masked_where(data == 0., data)
 
@@ -538,26 +538,26 @@ def write_netcdf_output(config, wavenumber, nb_segment, freq_unit, psd_ref, glob
     lon_out[:] = lon
 
     data = np.transpose(np.asarray(psd_ref)).reshape((fsize, lat.size, lon.size))
-    psd_ref = nc_out.createVariable('psd_ref', 'f8', ('wavenumber', 'lat', 'lon'))
+    psd_ref = nc_out.createVariable('psd_ref', 'f8', ('wavenumber', 'lat', 'lon'), zlib=True)
     psd_ref.units = 'm2/%s' % freq_unit
     psd_ref.coordinates = "freq lat lon"
     psd_ref.long_name = "power spectrum density reference field"
     psd_ref[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
 
-    global_psd_ref_out = nc_out.createVariable('global_mean_psd_ref', 'f8', 'wavenumber')
+    global_psd_ref_out = nc_out.createVariable('global_mean_psd_ref', 'f8', 'wavenumber', zlib=True)
     global_psd_ref_out.units = 'm2/%s' % freq_unit
     global_psd_ref_out[:] = np.ma.masked_invalid(global_psd_ref)
     global_psd_ref_out.long_name = "global power spectrum density reference field"
 
     if global_psd_study is not None:
-        global_psd_study_out = nc_out.createVariable('global_mean_psd_study', 'f8', 'wavenumber')
+        global_psd_study_out = nc_out.createVariable('global_mean_psd_study', 'f8', 'wavenumber', zlib=True)
         global_psd_study_out.units = 'm2/%s' % freq_unit
         global_psd_study_out[:] = np.ma.masked_invalid(global_psd_study)
         global_psd_study_out.long_name = "global power spectrum density study field"
 
     if psd_study is not None:
         data = np.transpose(np.asarray(psd_study)).reshape((fsize, lat.size, lon.size))
-        psd_study = nc_out.createVariable('psd_study', 'f8', ('wavenumber', 'lat', 'lon'))
+        psd_study = nc_out.createVariable('psd_study', 'f8', ('wavenumber', 'lat', 'lon'), zlib=True)
         psd_study.units = 'm2/%s' % freq_unit
         psd_study.coordinates = "freq lat lon"
         psd_study.long_name = "power spectrum density study field"
@@ -565,7 +565,7 @@ def write_netcdf_output(config, wavenumber, nb_segment, freq_unit, psd_ref, glob
 
     if psd_diff_ref_study is not None:
         data = np.transpose(np.asarray(psd_diff_ref_study)).reshape((fsize, lat.size, lon.size))
-        psd_diff = nc_out.createVariable('psd_diff', 'f8', ('wavenumber', 'lat', 'lon'))
+        psd_diff = nc_out.createVariable('psd_diff', 'f8', ('wavenumber', 'lat', 'lon'), zlib=True)
         psd_diff.units = 'm2/%s' % freq_unit
         psd_diff.coordinates = "freq lat lon"
         psd_diff.long_name = "power spectrum density of difference study minus reference field"
@@ -573,18 +573,20 @@ def write_netcdf_output(config, wavenumber, nb_segment, freq_unit, psd_ref, glob
 
     if coherence is not None:
         data = np.transpose(np.asarray(coherence)).reshape((fsize, lat.size, lon.size))
-        coherence_out = nc_out.createVariable('coherence', 'f8', ('wavenumber', 'lat', 'lon'))
+        coherence_out = nc_out.createVariable('coherence', 'f8', ('wavenumber', 'lat', 'lon'), zlib=True)
         coherence_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
         coherence_out.coordinates = "freq lat lon"
         coherence_out.long_name = "magnitude squared coherence between reference and study fields"
 
     if cross_spectrum is not None:
         data = np.transpose(np.asarray(cross_spectrum)).reshape((fsize, lat.size, lon.size))
-        cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('wavenumber', 'lat', 'lon'))
+        cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('wavenumber', 'lat', 'lon'),
+                                                        zlib=True)
         cross_spectrum_real_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.real(data) == 0., np.real(data)))
         cross_spectrum_real_out.coordinates = "freq lat lon"
         cross_spectrum_real_out.long_name = "real part of cross_spectrum between reference and study fields"
-        cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('wavenumber', 'lat', 'lon'))
+        cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('wavenumber', 'lat', 'lon'),
+                                                        zlib=True)
         cross_spectrum_imag_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.imag(data) == 0., np.imag(data)))
         cross_spectrum_imag_out.coordinates = "freq lat lon"
         cross_spectrum_imag_out.long_name = "imaginary part of cross_spectrum between reference and study fields"
@@ -615,43 +617,43 @@ def write_netcdf_tide_tao(filename, wavenumber, lat, lon, psd_tg, psd_study, psd
     nc_out.createDimension('wavenumber', np.asarray(wavenumber)[1, :].size)
     nc_out.createDimension('sensor', np.asarray(lat).size)
 
-    wavenumber_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber')
+    wavenumber_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber', zlib=True)
     wavenumber_out[:] = np.asarray(wavenumber)[1, :]
 
-    lat_out = nc_out.createVariable('lat', 'f8', 'sensor')
+    lat_out = nc_out.createVariable('lat', 'f8', 'sensor', zlib=True)
     lat_out[:] = np.asarray(lat)[lat_sorted_index]
     lat_out.longname = 'latitude sensor'
 
-    lon_out = nc_out.createVariable('lon', 'f8', 'sensor')
+    lon_out = nc_out.createVariable('lon', 'f8', 'sensor', zlib=True)
     lon_out[:] = np.asarray(lon)[lat_sorted_index]
     lon_out.longname = 'longitude sensor'
 
-    psd_tg_out = nc_out.createVariable('psd_ref', 'f8', ('sensor', 'wavenumber'))
+    psd_tg_out = nc_out.createVariable('psd_ref', 'f8', ('sensor', 'wavenumber'), zlib=True)
     psd_tg_out[:, :] = np.asarray(psd_tg)[lat_sorted_index, :]
     psd_tg_out.coordinates = "sensor freq"
     psd_tg_out.long_name = "power spectrum density ref field"
 
-    psd_study_out = nc_out.createVariable('psd_study', 'f8', ('sensor', 'wavenumber'))
+    psd_study_out = nc_out.createVariable('psd_study', 'f8', ('sensor', 'wavenumber'), zlib=True)
     psd_study_out[:, :] = np.asarray(psd_study)[lat_sorted_index, :]
     psd_study_out.coordinates = "sensor freq"
     psd_study_out.long_name = "power spectrum density study field"
     
-    psd_diff_study_tg_out = nc_out.createVariable('psd_diff', 'f8', ('sensor', 'wavenumber'))
+    psd_diff_study_tg_out = nc_out.createVariable('psd_diff', 'f8', ('sensor', 'wavenumber'), zlib=True)
     psd_diff_study_tg_out[:, :] = np.asarray(psd_diff_tg_study)[lat_sorted_index, :]
     psd_diff_study_tg_out.coordinates = "sensor freq"
     psd_diff_study_tg_out.long_name = "power spectrum density of difference study minus reference field"
 
-    coherence_out = nc_out.createVariable('coherence', 'f8', ('sensor', 'wavenumber'))
+    coherence_out = nc_out.createVariable('coherence', 'f8', ('sensor', 'wavenumber'), zlib=True)
     coherence_out[:, :] = np.asarray(coherence)[lat_sorted_index, :]
     coherence_out.coordinates = "sensor freq"
     coherence_out.long_name = "magnitude squared coherence between reference and study fields"
 
-    cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('sensor', 'wavenumber'))
+    cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('sensor', 'wavenumber'), zlib=True)
     cross_spectrum_real_out[:, :] = np.real(np.asarray(cross_spectrum))[lat_sorted_index, :]
     cross_spectrum_real_out.coordinates = "freq lat lon"
     cross_spectrum_real_out.long_name = "real part cross_spectrum between reference and study fields"
 
-    cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('sensor', 'wavenumber'))
+    cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('sensor', 'wavenumber'), zlib=True)
     cross_spectrum_imag_out[:, :] = np.imag(np.asarray(cross_spectrum))[lat_sorted_index, :]
     cross_spectrum_imag_out.coordinates = "freq lat lon"
     cross_spectrum_imag_out.long_name = "imaginary part cross_spectrum between reference and study fields"
@@ -686,20 +688,20 @@ def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_stud
     nc_out.createDimension('lat', lat.size)
     nc_out.createDimension('lon', lon.size)
 
-    frequence_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber')
+    frequence_out = nc_out.createVariable('wavenumber', 'f8', 'wavenumber', zlib=True)
     frequence_out.units = "1/%s" % freq_unit
     frequence_out.axis = 'T'
     freq = np.ma.masked_invalid(wavenumber)
 
     frequence_out[:] = freq
 
-    lat_out = nc_out.createVariable('lat', 'f8', 'lat')
+    lat_out = nc_out.createVariable('lat', 'f8', 'lat', zlib=True)
     lat_out[:] = lat
-    lon_out = nc_out.createVariable('lon', 'f8', 'lon')
+    lon_out = nc_out.createVariable('lon', 'f8', 'lon', zlib=True)
     lon_out[:] = lon
 
     data = np.transpose(np.asarray(psd_ref)).reshape((fsize, lat.size, lon.size))
-    psd_ref = nc_out.createVariable('psd_ref', 'f8', ('wavenumber', 'lat', 'lon'))
+    psd_ref = nc_out.createVariable('psd_ref', 'f8', ('wavenumber', 'lat', 'lon'), zlib=True)
     psd_ref.units = 'm2/%s' % freq_unit
     psd_ref.coordinates = "freq lat lon"
     psd_ref.long_name = "power spectrum density reference field"
@@ -707,7 +709,7 @@ def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_stud
 
     if psd_study is not None:
         data = np.transpose(np.asarray(psd_study)).reshape((fsize, lat.size, lon.size))
-        psd_study = nc_out.createVariable('psd_study', 'f8', ('wavenumber', 'lat', 'lon'))
+        psd_study = nc_out.createVariable('psd_study', 'f8', ('wavenumber', 'lat', 'lon'), zlib=True)
         psd_study.units = 'm2/%s' % freq_unit
         psd_study.coordinates = "freq lat lon"
         psd_study.long_name = "power spectrum density study field"
@@ -715,7 +717,7 @@ def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_stud
 
     if psd_diff_ref_study is not None:
         data = np.transpose(np.asarray(psd_diff_ref_study)).reshape((fsize, lat.size, lon.size))
-        psd_diff = nc_out.createVariable('psd_diff', 'f8', ('wavenumber', 'lat', 'lon'))
+        psd_diff = nc_out.createVariable('psd_diff', 'f8', ('wavenumber', 'lat', 'lon'), zlib=True)
         psd_diff.units = 'm2/%s' % freq_unit
         psd_diff.coordinates = "freq lat lon"
         psd_diff.long_name = "power spectrum density of difference study minus reference field"
@@ -723,18 +725,20 @@ def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_stud
 
     if coherence is not None:
         data = np.transpose(np.asarray(coherence)).reshape((fsize, lat.size, lon.size))
-        coherence_out = nc_out.createVariable('coherence', 'f8', ('wavenumber', 'lat', 'lon'))
+        coherence_out = nc_out.createVariable('coherence', 'f8', ('wavenumber', 'lat', 'lon'), zlib=True)
         coherence_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(data == 0, data))
         coherence_out.coordinates = "freq lat lon"
         coherence_out.long_name = "magnitude squared coherence between reference and study fields"
 
     if cross_spectrum is not None:
         data = np.transpose(np.asarray(cross_spectrum)).reshape((fsize, lat.size, lon.size))
-        cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('wavenumber', 'lat', 'lon'))
+        cross_spectrum_real_out = nc_out.createVariable('cross_spectrum_real', 'f8', ('wavenumber', 'lat', 'lon'),
+                                                        zlib=True)
         cross_spectrum_real_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.real(data) == 0., np.real(data)))
         cross_spectrum_real_out.coordinates = "freq lat lon"
         cross_spectrum_real_out.long_name = "real part of cross_spectrum between reference and study fields"
-        cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('wavenumber', 'lat', 'lon'))
+        cross_spectrum_imag_out = nc_out.createVariable('cross_spectrum_imag', 'f8', ('wavenumber', 'lat', 'lon'),
+                                                        zlib=True)
         cross_spectrum_imag_out[:, :, :] = np.ma.masked_invalid(np.ma.masked_where(np.imag(data) == 0., np.imag(data)))
         cross_spectrum_imag_out.coordinates = "freq lat lon"
         cross_spectrum_imag_out.long_name = "imaginary part of cross_spectrum between reference and study fields"
@@ -743,7 +747,7 @@ def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_stud
 
 
 def write_netcdf_stat_output(config, nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue,
-                             variance_ref, variance_study):
+                             variance_ref, variance_study, mean_ref, mean_study):
     """
 
     """
@@ -760,61 +764,68 @@ def write_netcdf_stat_output(config, nobs, min, max, mean, variance, skewness, k
     nc_out.createDimension('lat', lat.size)
     nc_out.createDimension('lon', lon.size)
 
-    lat_out = nc_out.createVariable('lat', 'f8', 'lat')
+    lat_out = nc_out.createVariable('lat', 'f8', 'lat', zlib=True)
     lat_out[:] = lat
-    lon_out = nc_out.createVariable('lon', 'f8', 'lon')
+    lon_out = nc_out.createVariable('lon', 'f8', 'lon', zlib=True)
     lon_out[:] = lon
 
-    nobs_out = nc_out.createVariable('nobs', 'i4', ('lat', 'lon'))
+    nobs_out = nc_out.createVariable('nobs', 'i4', ('lat', 'lon'), zlib=True)
     nobs_out.long_name = "number of observation"
     nobs_out[:, :] = np.ma.masked_where(nobs == 0, nobs)
 
-    min_out = nc_out.createVariable('min', 'f8', ('lat', 'lon'))
+    min_out = nc_out.createVariable('min', 'f8', ('lat', 'lon'), zlib=True)
     min_out.long_name = "minimum value"
     min_out[:, :] = np.ma.masked_where(min == 0., min)
 
-    max_out = nc_out.createVariable('max', 'f8', ('lat', 'lon'))
+    max_out = nc_out.createVariable('max', 'f8', ('lat', 'lon'), zlib=True)
     max_out.long_name = "maximum value"
     max_out[:, :] = np.ma.masked_where(max == 0., max)
 
-    mean_out = nc_out.createVariable('mean', 'f8', ('lat', 'lon'))
+    mean_out = nc_out.createVariable('mean', 'f8', ('lat', 'lon'), zlib=True)
     mean_out.long_name = "mean value"
     mean_out[:, :] = np.ma.masked_where(mean == 0., mean)
 
-    variance_out = nc_out.createVariable('variance', 'f8', ('lat', 'lon'))
+    variance_out = nc_out.createVariable('variance', 'f8', ('lat', 'lon'), zlib=True)
     variance_out.long_name = "variance value"
     variance_out[:, :] = np.ma.masked_where(variance == 0., variance)
 
-    skewness_out = nc_out.createVariable('skewness', 'f8', ('lat', 'lon'))
+    skewness_out = nc_out.createVariable('skewness', 'f8', ('lat', 'lon'), zlib=True)
     skewness_out.long_name = "skewness value"
     skewness_out[:, :] = np.ma.masked_where(skewness == 0., skewness)
 
-    kurtosis_out = nc_out.createVariable('kurtosis', 'f8', ('lat', 'lon'))
+    kurtosis_out = nc_out.createVariable('kurtosis', 'f8', ('lat', 'lon'), zlib=True)
     kurtosis_out.long_name = "kurtosis value"
     kurtosis_out[:, :] = np.ma.masked_where(kurtosis == 0., kurtosis)
 
-    rmse_out = nc_out.createVariable('rmse', 'f8', ('lat', 'lon'))
+    rmse_out = nc_out.createVariable('rmse', 'f8', ('lat', 'lon'), zlib=True)
     rmse_out.long_name = "mean square error value"
     rmse_out[:, :] = np.ma.masked_where(rmse == 0., rmse)
 
-    mae_out = nc_out.createVariable('mae', 'f8', ('lat', 'lon'))
+    mae_out = nc_out.createVariable('mae', 'f8', ('lat', 'lon'), zlib=True)
     mae_out.long_name = "mean absolute error value"
     mae_out[:, :] = np.ma.masked_where(mae == 0., mae)
 
-    correlation_out = nc_out.createVariable('correlation', 'f8', ('lat', 'lon'))
+    correlation_out = nc_out.createVariable('correlation', 'f8', ('lat', 'lon'), zlib=True)
     correlation_out.long_name = "correlation value"
     correlation_out[:, :] = np.ma.masked_where(correlation == 0., correlation)
 
-    pvalue_out = nc_out.createVariable('pvalue', 'f8', ('lat', 'lon'))
+    pvalue_out = nc_out.createVariable('pvalue', 'f8', ('lat', 'lon'), zlib=True)
     pvalue_out.long_name = "pvalue correlation"
     pvalue_out[:, :] = np.ma.masked_where(pvalue == 0., pvalue)
 
-    variance_ref_out = nc_out.createVariable('variance_ref', 'f8', ('lat', 'lon'))
+    variance_ref_out = nc_out.createVariable('variance_ref', 'f8', ('lat', 'lon'), zlib=True)
     variance_ref_out.long_name = "variance reference field"
     variance_ref_out[:, :] = np.ma.masked_where(variance_ref == 0., variance_ref)
 
-    variance_study_out = nc_out.createVariable('variance_study', 'f8', ('lat', 'lon'))
+    variance_study_out = nc_out.createVariable('variance_study', 'f8', ('lat', 'lon'), zlib=True)
     variance_study_out.long_name = "variance value"
     variance_study_out[:, :] = np.ma.masked_where(variance_study == 0., variance_study)
 
+    mean_ref_out = nc_out.createVariable('mean_ref', 'f8', ('lat', 'lon'), zlib=True)
+    mean_ref_out.long_name = "mean reference field"
+    mean_ref_out[:, :] = np.ma.masked_where(mean_ref == 0., mean_ref)
+
+    mean_study_out = nc_out.createVariable('mean_study', 'f8', ('lat', 'lon'), zlib=True)
+    mean_study_out.long_name = "mean study field"
+    mean_study_out[:, :] = np.ma.masked_where(mean_study == 0., mean_study)
     nc_out.close()

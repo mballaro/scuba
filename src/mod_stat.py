@@ -41,6 +41,8 @@ def statistic_computation(config, data_ref, data_study, lon, lat):
     list_pvalue = []
     list_variance_ref = []
     list_variance_study = []
+    list_mean_ref = []
+    list_mean_study = []
 
     # Loop over output lon/lat boxes and selection of the segment within the box plus/minus delta_lon/lat
     for ilat in grid_lat:
@@ -90,6 +92,8 @@ def statistic_computation(config, data_ref, data_study, lon, lat):
                 correlation, pvalue = scipy.stats.mstats.pearsonr(selected_data_ref, selected_data_study)
                 variance_ref = np.ma.var(selected_data_ref)
                 variance_study = np.ma.var(selected_data_study)
+                mean_ref = np.ma.mean(selected_data_ref)
+                mean_study = np.ma.mean(selected_data_study)
 
                 list_nobs.append(nobs)
                 list_min.append(minmax[0])
@@ -104,6 +108,8 @@ def statistic_computation(config, data_ref, data_study, lon, lat):
                 list_pvalue.append(pvalue)
                 list_variance_ref.append(variance_ref)
                 list_variance_study.append(variance_study)
+                list_mean_ref.append(mean_ref)
+                list_mean_study.append(mean_study)
 
             else:
 
@@ -120,6 +126,8 @@ def statistic_computation(config, data_ref, data_study, lon, lat):
                 list_pvalue.append(0.)
                 list_variance_ref.append(0.)
                 list_variance_study.append(0.)
+                list_mean_ref.append(0.)
+                list_mean_study.append(0.)
 
     nobs = np.asarray(list_nobs).reshape(grid_lat.size, grid_lon.size)
     min = np.asarray(list_min).reshape(grid_lat.size, grid_lon.size)
@@ -134,6 +142,8 @@ def statistic_computation(config, data_ref, data_study, lon, lat):
     pvalue = np.asarray(list_pvalue).reshape(grid_lat.size, grid_lon.size)
     variance_ref = np.asarray(list_variance_ref).reshape(grid_lat.size, grid_lon.size)
     variance_study = np.asarray(list_variance_study).reshape(grid_lat.size, grid_lon.size)
+    mean_ref = np.asarray(list_mean_ref).reshape(grid_lat.size, grid_lon.size)
+    mean_study = np.asarray(list_mean_study).reshape(grid_lat.size, grid_lon.size)
 
     return nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue, variance_ref, \
-           variance_study
+           variance_study, mean_ref, mean_study

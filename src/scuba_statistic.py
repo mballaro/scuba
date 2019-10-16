@@ -143,11 +143,11 @@ if debug:
     plt.show()
 
 
-nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue , variance_ref, variance_study = \
+nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue , variance_ref, variance_study, mean_ref, mean_study = \
     statistic_computation(YAML, ssh_alongtrack, ssh_map_interpolated, lon_alongtrack, lat_alongtrack)
 
 # # Write netCDF output
 logging.info("start writing")
 write_netcdf_stat_output(YAML, nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue,
-                         variance_ref, variance_study)
+                         variance_ref, variance_study, mean_ref, mean_study)
 logging.info("end writing")

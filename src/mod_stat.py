@@ -4,6 +4,119 @@ import scipy.signal
 import matplotlib.pylab as plt
 from mod_constant import *
 import scipy.stats
+import xarray as xr
+import datetime
+
+
+def timeseries_statistic_computation(config, data_ref, data_study, time):
+    """
+
+    :param config:
+    :param data_ref:
+    :param data_study:
+    :param time:
+    :return:
+    """
+
+    list_nobs = []
+    list_min = []
+    list_max = []
+    list_mean = []
+    list_variance = []
+    list_skewness = []
+    list_kurtosis = []
+    list_rmse = []
+    list_mae = []
+    list_correlation = []
+    list_pvalue = []
+    list_mean_ref = []
+    list_variance_ref = []
+    list_mean_study = []
+    list_variance_study = []
+
+    data = data_ref - data_study
+    vtime = np.arange(np.min(time), np.max(time) + 1., 1.)
+
+    for itime in vtime:
+        time_min = itime - 0.5
+        time_max = itime + 0.5
+        selected_time_index = np.where(np.logical_and(time >= time_min, time <= time_max))[0]
+        
+        if len(selected_time_index) > 0:
+            selected_data = np.ma.masked_where(data[selected_time_index].flatten() > 1.E10,
+                                               data[selected_time_index].flatten())
+            selected_data_ref = np.ma.masked_where(data_ref[selected_time_index].flatten() > 1.E10,
+                                                   data_ref[selected_time_index].flatten())
+            selected_data_study = np.ma.masked_where(data_study[selected_time_index].flatten() > 1.E10,
+                                                     data_study[selected_time_index].flatten())
+       
+            nobs = np.ma.count(selected_data)
+            variance = np.ma.var(selected_data)
+            minmax = [np.ma.min(selected_data), np.ma.max(selected_data)]
+            mean = np.ma.mean(selected_data)
+            skewness = scipy.stats.mstats.skew(selected_data)
+            kurtosis = scipy.stats.mstats.kurtosis(selected_data)
+            rmse = np.ma.sqrt((selected_data ** 2).mean())
+            mae = np.ma.mean(np.absolute(selected_data))
+            correlation, pvalue = scipy.stats.mstats.pearsonr(selected_data_ref, selected_data_study)
+            variance_ref = np.ma.var(selected_data_ref)
+            variance_study = np.ma.var(selected_data_study)
+            mean_ref = np.ma.mean(selected_data_ref)
+            mean_study = np.ma.mean(selected_data_study)
+
+            list_nobs.append(nobs)
+            list_min.append(minmax[0])
+            list_max.append(minmax[1])
+            list_mean.append(mean)
+            list_variance.append(variance)
+            list_skewness.append(skewness)
+            list_kurtosis.append(kurtosis)
+            list_rmse.append(rmse)
+            list_mae.append(mae)
+            list_correlation.append(correlation)
+            list_pvalue.append(pvalue)
+            list_mean_ref.append(mean_ref)
+            list_variance_ref.append(variance_ref)
+            list_mean_study.append(mean_study)
+            list_variance_study.append(variance_study)
+
+
+        else:
+
+            list_nobs.append(0)
+            list_min.append(0.)
+            list_max.append(0.)
+            list_mean.append(0.)
+            list_variance.append(0.)
+            list_skewness.append(0.)
+            list_kurtosis.append(0.)
+            list_rmse.append(0.)
+            list_mae.append(0.)
+            list_correlation.append(0.)
+            list_pvalue.append(0.)
+            list_mean_ref.append(0.)
+            list_variance_ref.append(0.)
+            list_mean_study.append(0.)
+            list_variance_study.append(0.)
+
+    nobs = np.asarray(list_nobs)
+    vmin = np.asarray(list_min)
+    vmax = np.asarray(list_max)
+    mean = np.asarray(list_mean)
+    variance = np.asarray(list_variance)
+    skewness = np.asarray(list_skewness)
+    kurtosis = np.asarray(list_kurtosis)
+    rmse = np.asarray(list_rmse)
+    mae = np.asarray(list_mae)
+    correlation = np.asarray(list_correlation)
+    pvalue = np.asarray(list_pvalue)
+    mean_ref = np.asarray(list_mean_ref)
+    variance_ref = np.asarray(list_variance_ref)
+    mean_study = np.asarray(list_mean_study)
+    variance_study = np.asarray(list_variance_study)
+
+    return nobs, vmin, vmax, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue, vtime, variance_ref, \
+           variance_study, mean_ref, mean_study
 
 
 def statistic_computation(config, data_ref, data_study, lon, lat):

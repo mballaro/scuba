@@ -680,8 +680,6 @@ def write_netcdf_temporal_output(config, wavenumber, lat, lon, psd_ref, psd_stud
     output_netcdf_file = config['outputs']['output_filename_t_direction']
     freq_unit = 'days'
 
-    print(wavenumber)
-
     nc_out = Dataset(output_netcdf_file, 'w', format='NETCDF4')
     fsize = np.shape(np.asarray(wavenumber))[0]
     nc_out.createDimension('wavenumber', fsize)
@@ -828,4 +826,83 @@ def write_netcdf_stat_output(config, nobs, min, max, mean, variance, skewness, k
     mean_study_out = nc_out.createVariable('mean_study', 'f8', ('lat', 'lon'), zlib=True)
     mean_study_out.long_name = "mean study field"
     mean_study_out[:, :] = np.ma.masked_where(mean_study == 0., mean_study)
+    nc_out.close()
+
+
+def write_netcdf_timesries_stat_output(config, nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae,
+                                       correlation, pvalue, timeline, variance_ref, variance_study,
+                                       mean_ref, mean_study):
+    """
+
+    """
+
+    output_netcdf_file = config['outputs']['output_timeseries_filename']
+
+    nc_out = Dataset(output_netcdf_file, 'w', format='NETCDF4')
+    nc_out.createDimension('time', timeline.size)
+
+    time_out = nc_out.createVariable('time', 'f8', 'time')
+    time_out[:] = timeline
+    time_out.units= 'days since 1950-01-01'
+
+    nobs_out = nc_out.createVariable('nobs', 'i4', 'time')
+    nobs_out.long_name = "number of observation"
+    nobs_out[:] = np.ma.masked_where(nobs == 0, nobs)
+
+    min_out = nc_out.createVariable('min', 'f8', 'time')
+    min_out.long_name = "minimum value"
+    min_out[:] = np.ma.masked_where(min == 0., min)
+
+    max_out = nc_out.createVariable('max', 'f8', 'time')
+    max_out.long_name = "maximum value"
+    max_out[:] = np.ma.masked_where(max == 0., max)
+
+    mean_out = nc_out.createVariable('mean', 'f8', 'time')
+    mean_out.long_name = "mean value"
+    mean_out[:] = np.ma.masked_where(mean == 0., mean)
+
+    variance_out = nc_out.createVariable('variance', 'f8', 'time')
+    variance_out.long_name = "variance value"
+    variance_out[:] = np.ma.masked_where(variance == 0., variance)
+
+    skewness_out = nc_out.createVariable('skewness', 'f8', 'time')
+    skewness_out.long_name = "skewness value"
+    skewness_out[:] = np.ma.masked_where(skewness == 0., skewness)
+
+    kurtosis_out = nc_out.createVariable('kurtosis', 'f8', 'time')
+    kurtosis_out.long_name = "kurtosis value"
+    kurtosis_out[:] = np.ma.masked_where(kurtosis == 0., kurtosis)
+
+    rmse_out = nc_out.createVariable('rmse', 'f8', 'time')
+    rmse_out.long_name = "mean square error value"
+    rmse_out[:] = np.ma.masked_where(rmse == 0., rmse)
+
+    mae_out = nc_out.createVariable('mae', 'f8', 'time')
+    mae_out.long_name = "mean absolute error value"
+    mae_out[:] = np.ma.masked_where(mae == 0., mae)
+
+    correlation_out = nc_out.createVariable('correlation', 'f8', 'time')
+    correlation_out.long_name = "correlation value"
+    correlation_out[:] = np.ma.masked_where(correlation == 0., correlation)
+
+    pvalue_out = nc_out.createVariable('pvalue', 'f8', 'time')
+    pvalue_out.long_name = "pvalue correlation"
+    pvalue_out[:] = np.ma.masked_where(pvalue == 0., pvalue)
+
+    mean_ref_out = nc_out.createVariable('mean_ref', 'f8', 'time')
+    mean_ref_out.long_name = "mean ref value"
+    mean_ref_out[:] = np.ma.masked_where(mean_ref == 0., mean_ref)
+
+    variance_ref_out = nc_out.createVariable('variance_ref', 'f8', 'time')
+    variance_ref_out.long_name = "variance ref value"
+    variance_ref_out[:] = np.ma.masked_where(variance_ref == 0., variance_ref)
+
+    mean_study_out = nc_out.createVariable('mean_study', 'f8', 'time')
+    mean_study_out.long_name = "mean study value"
+    mean_study_out[:] = np.ma.masked_where(mean_study == 0., mean_study)
+
+    variance_study_out = nc_out.createVariable('variance_study', 'f8', 'time')
+    variance_study_out.long_name = "variance study value"
+    variance_study_out[:] = np.ma.masked_where(variance_study == 0., variance_study)
+
     nc_out.close()

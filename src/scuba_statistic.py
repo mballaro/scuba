@@ -121,12 +121,17 @@ if  YAML['properties']['filtering']['filter_type'].lower() is not 'none':
                                                                  scaling='density',
                                                                  noverlap=0)
 
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
         plt.plot(1./global_wavenumber_filtered, global_psd_ref_filtered, label='PSD filtered', color='r')
         plt.plot(1./global_wavenumber, global_psd_ref, label='PSD raw', color='b')
         for ls in YAML['properties']['filtering']['length_scale']:
             plt.axvline(x=ls, color='k')
         plt.xscale('log')
         plt.yscale('log')
+        plt.legend(loc='best')
+        plt.xticks([50, 100, 200, 500, 1000], ["50km", "100km", "200km", "500km", "1000km"])
+        ax.invert_xaxis()
         plt.show()
 
         ssh_alongtrack = ssh_alongtrack_filtered
@@ -142,12 +147,25 @@ if debug:
     plt.legend(loc='best')
     plt.show()
 
-
+logging.info("start computing temporal averaging stat")
 nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue , variance_ref, variance_study, mean_ref, mean_study = \
     statistic_computation(YAML, ssh_alongtrack, ssh_map_interpolated, lon_alongtrack, lat_alongtrack)
+logging.info("end computing temporal averaging stat")
 
 # # Write netCDF output
 logging.info("start writing")
 write_netcdf_stat_output(YAML, nobs, min, max, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue,
                          variance_ref, variance_study, mean_ref, mean_study)
 logging.info("end writing")
+
+logging.info("start computing spatial averaging stat")
+nobs, minval, maxval, mean, variance, skewness, kurtosis, rmse, mae, correlation, pvalue, timeline, variance_ref, \
+           variance_study, mean_ref, mean_study = \
+    timeseries_statistic_computation(YAML, ssh_alongtrack, ssh_map_interpolated, time_alongtrack)
+logging.info("end computing spatial averaging stat")
+
+logging.info("start writing stat timeseries")
+write_netcdf_timesries_stat_output(YAML, nobs, minval, maxval, mean, variance, skewness, kurtosis, rmse, mae,
+                                   correlation, pvalue, timeline, variance_ref, variance_study, mean_ref, mean_study)
+logging.info("end writing stat timeseries")
+

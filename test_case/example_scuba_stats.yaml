@@ -75,5 +75,6 @@ outputs:
     output_lon_resolution: 1.
     output_lat_resolution: 1.
     output_segment_filename: segment.nc
-    output_filename: stats_map_alongtrack.nc #_65-500km.nc
+    output_filename: stats_map_alongtrack.nc
+    output_timeseries_filename: stat_timeseries.nc
 

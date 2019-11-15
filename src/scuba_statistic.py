@@ -134,8 +134,8 @@ if  YAML['properties']['filtering']['filter_type'].lower() is not 'none':
         ax.invert_xaxis()
         plt.show()
 
-        ssh_alongtrack = ssh_alongtrack_filtered
-        ssh_map_interpolated = ssh_map_interpolated_filtered
+    ssh_alongtrack = ssh_alongtrack_filtered
+    ssh_map_interpolated = ssh_map_interpolated_filtered
 
 debug = False
 if debug:

@@ -42,7 +42,7 @@ def compute_autocorrelation(power_spectrum, wavenumber, display=False):
         plt.axhline(y=0., color='k', lw=2)
         plt.show()
 
-    return autocorrelation[:int(autocorrelation.size/2)], distance
+    return autocorr[:int(autocorr.size/2)], dist
 
 
 def compute_crossing(array, xdistance):
